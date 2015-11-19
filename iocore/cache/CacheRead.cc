@@ -91,6 +91,8 @@ Lcallreturn:
   return &c->_action;
 }
 
+//Flying Squid
+
 #ifdef HTTP_CACHE
 Action *
 Cache::open_read(Continuation *cont, const CacheKey *key, CacheHTTPHdr *request, CacheLookupHttpConfig *params, CacheFragType type,

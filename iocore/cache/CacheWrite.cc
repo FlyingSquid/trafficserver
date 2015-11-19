@@ -1640,6 +1640,10 @@ Cache::open_write(Continuation *cont, const CacheKey *key, CacheFragType frag_ty
 
 #ifdef HTTP_CACHE
 // main entry point for writing of http documents
+
+
+//FlyingSquid: LOOK HERE MAYBE ITS USEFUL
+
 Action *
 Cache::open_write(Continuation *cont, const CacheKey *key, CacheHTTPInfo *info, time_t apin_in_cache,
                   const CacheKey * /* key1 ATS_UNUSED */, CacheFragType type, const char *hostname, int host_len)
