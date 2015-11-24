@@ -14,41 +14,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-SUBDIRS = \
- authproxy \
- background_fetch \
- balancer \
- buffer_upload \
- cache_range_requests \
- cache_promote \
- collapsed_connection \
- custom_redirect \
- epic \
- escalate \
- esi \
- flying_squid \
- generator \
- geoip_acl \
- header_normalize \
- hipes \
- metalink \
- multiplexer \
- memcached_remap \
- regex_revalidate \
- remap_stats \
- s3_auth \
- ssl_cert_loader \
- sslheaders \
- stale_while_revalidate \
- url_sig \
- xdebug \
- mp4 \
- stream_editor
+include $(top_srcdir)/build/plugins.mk
 
-if HAS_MYSQL
-  SUBDIRS += mysql_remap
-endif
-
-if BUILD_LUAJIT
-  SUBDIRS += ts_lua
-endif
+pkglib_LTLIBRARIES = flying_squid.la
+flying_squid_la_SOURCES = flying_squid.cc
+flying_squid_la_LDFLAGS = $(TS_PLUGIN_LDFLAGS)

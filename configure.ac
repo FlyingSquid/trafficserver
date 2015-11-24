@@ -1903,6 +1903,7 @@ AS_IF([test "x$enable_experimental_plugins" = "xyes"], [
     plugins/experimental/epic/Makefile
     plugins/experimental/escalate/Makefile
     plugins/experimental/esi/Makefile
+    plugins/experimental/flying_squid/Makefile
     plugins/experimental/generator/Makefile
     plugins/experimental/geoip_acl/Makefile
     plugins/experimental/header_normalize/Makefile
