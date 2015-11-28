@@ -49,7 +49,13 @@ flying_squid_plugin(TSCont contp, TSEvent event, void *edata)
       TSHttpTxnReenable(txnp, TS_EVENT_HTTP_CONTINUE);
       break;
     // case transform
-    // case response header
+    case TS_EVENT_HTTP_READ_RESPONSE_HDR:
+      // Check if response was from cache or from OS
+      // If not from cache,
+      //     Write response to cache
+      // Go on to do whatever is done normally
+      TSHttpTxnReenable(txnp, TS_EVENT_HTTP_CONTINUE);
+      break; 
     // case return response body
     default:
       break;
