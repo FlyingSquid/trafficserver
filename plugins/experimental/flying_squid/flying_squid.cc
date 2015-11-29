@@ -24,11 +24,60 @@
  *****************************************************************************/
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "ts/ts.h"
 
 #define PLUGIN_NAME "flying_squid"
 
+static char *
+compute_cache_key(TSHttpTxn txnp)
+{
+  TSMBuffer bufp;
+  TSMLoc hdr_loc;
+  TSMLoc url_loc;
+  int url_length;
+  char *url_str;
+
+  TSDebug(PLUGIN_NAME, "computing cache key");
+
+  if (TSHttpTxnClientReqGet(txnp, &bufp, &hdr_loc) != TS_SUCCESS) {
+    TSError("[%s] Couldn't retrieve client request header", PLUGIN_NAME);
+    // handle error
+  }
+
+  if (TSHttpHdrUrlGet(bufp, hdr_loc, &url_loc) != TS_SUCCESS) {
+    TSError("[blacklist] Couldn't retrieve request url");
+    TSHandleMLocRelease(bufp, TS_NULL_MLOC, hdr_loc);
+    // handle error
+  }
+
+  url_str = TSUrlStringGet(bufp, url_loc, &url_length);
+
+  TSDebug(PLUGIN_NAME, (char *)url_str);
+
+  // release header and url strings
+  TSHandleMLocRelease (bufp, hdr_loc, url_loc);
+  TSHandleMLocRelease (bufp, TS_NULL_MLOC, hdr_loc);
+
+  return (char *)"thisisakey";
+}
+
+static bool
+cache_lookup(char *key)
+{
+  TSDebug(PLUGIN_NAME, "cache lookup");
+
+  // return s3 bucket query for key
+
+  if (true) {
+    TSDebug(PLUGIN_NAME, "cache hit");
+    return true;
+  } else {
+    TSDebug(PLUGIN_NAME, "cache miss");
+    return false;
+  }
+}
 
 static int
 flying_squid_plugin(TSCont contp, TSEvent event, void *edata)
@@ -40,12 +89,11 @@ flying_squid_plugin(TSCont contp, TSEvent event, void *edata)
   switch (event) {
     case TS_EVENT_HTTP_READ_REQUEST_HDR:
       TSDebug(PLUGIN_NAME, "Request header hook callback");
-      // compute cache key from request header
-      // do cache lookup
-      //   if in cache
-      //     return appropriate response (have to skip over some states)
-      //   if not in cache
-      //     register handler for transform/send response header
+      if (cache_lookup(compute_cache_key(txnp))) {
+        TSDebug(PLUGIN_NAME, "register handler for returning cache object");
+      } else {
+        TSDebug(PLUGIN_NAME, "continue on HTTP transaction");
+      }
       TSHttpTxnReenable(txnp, TS_EVENT_HTTP_CONTINUE);
       break;
     // case transform
