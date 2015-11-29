@@ -37,7 +37,7 @@
    now, lets assume this is pretty good. There's something special about the
    number 33 here
 */
-unsigned long djbtwo(char *str)
+static unsigned long djbtwo(char *str)
 {
     unsigned long hash = 5381;
     int c;
@@ -74,15 +74,21 @@ compute_cache_key(TSHttpTxn txnp)
 
   TSDebug(PLUGIN_NAME, (char *)url_str);
 
-  //Compute key here
+  /* Compute key here:
+   * i. Do we need to normalize the URL?
+   * ii. Run a djb2 hash on the URL
+   * iii. Convert the resultant long into a string (clearly bijective,
+   *      so no conflicts here).
+  */
   unsigned long key_as_long = djbtwo(url_str);
 
-  //Convert long to string for s3 key
+  //Convert key_as_long to string
   std::ostringstream ss;
   ss << key_as_long;
   std::string key = ss.str();
 
   TSDebug(PLUGIN_NAME, key.c_str());
+
 
   // release header and url strings
   TSHandleMLocRelease (bufp, hdr_loc, url_loc);
