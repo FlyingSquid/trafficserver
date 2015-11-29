@@ -25,10 +25,28 @@
 
 #include <stdlib.h>
 #include <string.h>
-
+#include <sstream>
 #include "ts/ts.h"
 
 #define PLUGIN_NAME "flying_squid"
+
+/* djb2 was designed by Dan Bernstein, another variant we could
+   use uses xor, so hash(i) = hash(i-1)*33 ^ str[i]
+
+   We can explore the number of hits and misses for both, but for
+   now, lets assume this is pretty good. There's something special about the
+   number 33 here
+*/
+unsigned long djbtwo(char *str)
+{
+    unsigned long hash = 5381;
+    int c;
+
+    while (c = *str++)
+        hash = ((hash << 5) + hash) + c;  /* hash * 33 + c */
+    
+    return hash;
+}
 
 static char *
 compute_cache_key(TSHttpTxn txnp)
@@ -56,11 +74,21 @@ compute_cache_key(TSHttpTxn txnp)
 
   TSDebug(PLUGIN_NAME, (char *)url_str);
 
+  //Compute key here
+  unsigned long key_as_long = djbtwo(url_str);
+
+  //Convert long to string for s3 key
+  std::ostringstream ss;
+  ss << key_as_long;
+  std::string key = ss.str();
+
+  TSDebug(PLUGIN_NAME, (char *)key);
+
   // release header and url strings
   TSHandleMLocRelease (bufp, hdr_loc, url_loc);
   TSHandleMLocRelease (bufp, TS_NULL_MLOC, hdr_loc);
 
-  return (char *)"thisisakey";
+  return (char *)key;
 }
 
 static bool
