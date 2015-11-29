@@ -82,13 +82,13 @@ compute_cache_key(TSHttpTxn txnp)
   ss << key_as_long;
   std::string key = ss.str();
 
-  TSDebug(PLUGIN_NAME, (char *)key);
+  TSDebug(PLUGIN_NAME, key.c_str());
 
   // release header and url strings
   TSHandleMLocRelease (bufp, hdr_loc, url_loc);
   TSHandleMLocRelease (bufp, TS_NULL_MLOC, hdr_loc);
 
-  return (char *)key;
+  return (char *)key.c_str();
 }
 
 static bool
