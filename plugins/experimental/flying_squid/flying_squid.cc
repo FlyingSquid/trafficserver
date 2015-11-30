@@ -65,7 +65,7 @@ compute_cache_key(TSHttpTxn txnp)
   }
 
   if (TSHttpHdrUrlGet(bufp, hdr_loc, &url_loc) != TS_SUCCESS) {
-    TSError("[blacklist] Couldn't retrieve request url");
+    TSError("[%s] Couldn't retrieve request url", PLUGIN_NAME);
     TSHandleMLocRelease(bufp, TS_NULL_MLOC, hdr_loc);
     // handle error
   }
@@ -88,7 +88,6 @@ compute_cache_key(TSHttpTxn txnp)
   std::string key = ss.str();
 
   TSDebug(PLUGIN_NAME, key.c_str());
-
 
   // release header and url strings
   TSHandleMLocRelease (bufp, hdr_loc, url_loc);
