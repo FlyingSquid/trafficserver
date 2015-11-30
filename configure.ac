@@ -481,6 +481,21 @@ AC_MSG_RESULT([$enable_32bit])
 
 
 #
+# Cloud Caching TODO: add configurations to specify location of SDK, etc.
+#
+
+# AWS
+#AC_MSG_CHECKING([whether to enable experimental plugins])
+#AC_ARG_ENABLE([experimental-plugins],
+#  [AS_HELP_STRING([--enable-experimental-plugins],[build experimental plugins])],
+#  [],
+#  [enable_experimental_plugins=no]
+#)
+#AC_MSG_RESULT([$enable_experimental_plugins])
+#AM_CONDITIONAL([BUILD_EXPERIMENTAL_PLUGINS], [ test "x${enable_experimental_plugins}" = "xyes" ])
+
+
+#
 # Installation directories
 # For each var the following is evaluated
 # foo      Standard variable  eg. ${prefix}/foo

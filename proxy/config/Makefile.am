@@ -27,6 +27,7 @@ nodist_sysconf_DATA = \
   storage.config.default
 
 dist_sysconf_DATA =	\
+  aws_cache.config.default \
   cache.config.default \
   cluster.config.default \
   congestion.config.default \

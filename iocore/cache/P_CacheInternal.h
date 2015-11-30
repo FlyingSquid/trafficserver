@@ -1034,6 +1034,7 @@ cache_hash(const INK_MD5 &md5)
 
 #ifdef HTTP_CACHE
 #define CLUSTER_CACHE
+#define CLOUD_CACHE
 #endif
 
 #ifdef CLUSTER_CACHE
@@ -1042,6 +1043,9 @@ cache_hash(const INK_MD5 &md5)
 // Note: This include must occur here in order to avoid numerous forward
 //       reference problems.
 #include "P_ClusterInline.h"
+#endif
+
+#ifdef CLOUD_CACHE
 #endif
 
 LINK_DEFINITION(CacheVC, opendir_link)

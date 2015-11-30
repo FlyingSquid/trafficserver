@@ -717,6 +717,14 @@ static const RecordElement RecordsConfig[] =
   {RECT_CONFIG, "proxy.config.http.cache.fuzz.probability", RECD_FLOAT, "0.005", RECU_DYNAMIC, RR_NULL, RECC_NULL, NULL, RECA_NULL}
   ,
 
+  //        #################
+  //        # cloud caching #
+  //        #################
+  {RECT_CONFIG, "proxy.config.http.cache.cloud.enable", RECD_INT, "1", RECU_DYNAMIC, RR_NULL, RECC_NULL, NULL, RECA_NULL}
+  ,
+//  {RECT_CONFIG, "proxy.config.http.cache.cloud.provider", RECD_STRING, "1", RECU_DYNAMIC, RR_NULL, RECC_NULL, NULL, RECA_NULL}
+//  ,
+
   //        #########################################
   //        # dynamic content & content negotiation #
   //        #########################################

@@ -72,11 +72,20 @@ cache_lookup(char *key)
 
   if (true) {
     TSDebug(PLUGIN_NAME, "cache hit");
-    return true;
+//    return true;
   } else {
     TSDebug(PLUGIN_NAME, "cache miss");
-    return false;
+//    return false;
   }
+
+  return false;
+}
+
+static int
+cache_write(TSCont contp, TSEvent event, void *edata)
+{
+
+  return 0;
 }
 
 static int
@@ -92,19 +101,20 @@ flying_squid_plugin(TSCont contp, TSEvent event, void *edata)
       if (cache_lookup(compute_cache_key(txnp))) {
         TSDebug(PLUGIN_NAME, "register handler for returning cache object");
       } else {
-        TSDebug(PLUGIN_NAME, "continue on HTTP transaction");
+        TSDebug(PLUGIN_NAME, "register handler for transform hook");
+//        TSHttpTxnHookAdd(txnp, TS_HTTP_RESPONSE_TRANSFORM_HOOK, TSTransformCreate(cache_write, txnp));
       }
       TSHttpTxnReenable(txnp, TS_EVENT_HTTP_CONTINUE);
       break;
     // case transform
     case TS_EVENT_HTTP_READ_RESPONSE_HDR:
+      TSDebug(PLUGIN_NAME, "read response header callback");
       // Check if response was from cache or from OS
       // If not from cache,
       //     Write response to cache
       // Go on to do whatever is done normally
       TSHttpTxnReenable(txnp, TS_EVENT_HTTP_CONTINUE);
-      break; 
-    // case return response body
+      break;
     default:
       break;
   }

@@ -122,6 +122,13 @@ CONFIG proxy.config.http.cache.heuristic_max_lifetime INT 86400
 CONFIG proxy.config.http.cache.heuristic_lm_factor FLOAT 0.10
 
 ##############################################################################
+# Cloud Cache. Docs:
+#    TODO: https://docs.put them here.org
+##############################################################################
+CONFIG proxy.config.http.cache.cloud.enable INT 0
+CONFIG proxy.config.http.cache.cloud.provider STRING NULL
+
+##############################################################################
 # Network. Docs:
 #    https://docs.trafficserver.apache.org/records.config#network
 ##############################################################################

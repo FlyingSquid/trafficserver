@@ -162,6 +162,13 @@ Lcallreturn:
 }
 #endif
 
+#ifdef CLOUD_CACHE
+//Action *
+//Cache::open_read()
+//{
+//}
+#endif
+
 uint32_t
 CacheVC::load_http_info(CacheHTTPInfoVector *info, Doc *doc, RefCountObj *block_ptr)
 {
