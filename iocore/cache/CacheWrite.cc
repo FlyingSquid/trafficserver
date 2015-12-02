@@ -1576,9 +1576,6 @@ Action *
 Cache::open_write(Continuation *cont, const CacheKey *key, CacheFragType frag_type, int options, time_t apin_in_cache,
                   const char *hostname, int host_len)
 {
-
-  Debug("http_flying_squid", "Cache::open_write non-http");
-
   if (!CacheProcessor::IsCacheReady(frag_type)) {
     cont->handleEvent(CACHE_EVENT_OPEN_WRITE_FAILED, (void *)-ECACHE_NOT_READY);
     return ACTION_RESULT_DONE;

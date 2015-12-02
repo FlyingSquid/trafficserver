@@ -1045,9 +1045,6 @@ cache_hash(const INK_MD5 &md5)
 #include "P_ClusterInline.h"
 #endif
 
-#ifdef CLOUD_CACHE
-#endif
-
 LINK_DEFINITION(CacheVC, opendir_link)
 
 #endif /* _P_CACHE_INTERNAL_H__ */

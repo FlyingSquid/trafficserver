@@ -1,4 +1,4 @@
-# Makefile.am for the traffic/iocore/cache hierarchy
+# Makefile.am for the traffic/iocore/cache/cloud/aws hierarchy
 #
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -16,14 +16,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-SUBDIRS = cloud
-
 AM_CPPFLAGS = \
   $(iocore_include_dirs) \
   -I$(top_srcdir)/lib \
   -I$(top_srcdir)/lib/records \
-  -I$(srcdir)/cloud \
-  -I$(srcdir)/cloud/aws \
   -I$(top_srcdir)/proxy/api/ts \
   -I$(top_srcdir)/proxy \
   -I$(top_srcdir)/proxy/hdrs \
@@ -33,42 +29,14 @@ AM_CPPFLAGS = \
   -I$(top_srcdir)/mgmt \
   -I$(top_srcdir)/mgmt/utils
 
-ADD_SRC =
-if BUILD_TESTS
-  ADD_SRC += CacheTest.cc P_CacheTest.h 
-endif
+#ADD_SRC =
+#if BUILD_TESTS
+#  ADD_SRC += AWSCacheTest.cc AWSCacheTest.h
+#endif
 
-noinst_LIBRARIES = libinkcache.a
+noinst_LIBRARIES = libinkawscache.a
 
-libinkcache_a_SOURCES = \
-  Cache.cc \
-  CacheDir.cc \
-  CacheDisk.cc \
-  CacheHosting.cc \
-  CacheHttp.cc \
-  CacheLink.cc \
-  CachePages.cc \
-  CachePagesInternal.cc \
-  CacheRead.cc \
-  CacheVol.cc \
-  CacheWrite.cc \
-  I_Cache.h \
-  I_CacheDefs.h \
-  I_Store.h \
-  Inline.cc \
-  P_Cache.h \
-  P_CacheArray.h \
-  P_CacheDir.h \
-  P_CacheDisk.h \
-  P_CacheHosting.h \
-  P_CacheHttp.h \
-  P_CacheInternal.h \
-  P_CacheVol.h \
-  P_RamCache.h \
-  RamCacheCLFUS.cc \
-  RamCacheLRU.cc \
-  Store.cc \
-  cloud/CloudCache.h \
-  cloud/CloudCache.cc \
-  cloud/CloudProvider.h \
+libinkawscache_a_SOURCES = \
+  AWSCache.cc \
+  AWSCache.h \
   $(ADD_SRC)

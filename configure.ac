@@ -1849,6 +1849,8 @@ AC_CONFIG_FILES([
   iocore/Makefile
   iocore/aio/Makefile
   iocore/cache/Makefile
+  iocore/cache/cloud/Makefile
+  iocore/cache/cloud/aws/Makefile
   iocore/cluster/Makefile
   iocore/dns/Makefile
   iocore/eventsystem/Makefile

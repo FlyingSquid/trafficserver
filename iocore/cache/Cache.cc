@@ -38,6 +38,10 @@
 #include "P_CacheBC.h"
 #endif
 
+#ifdef CLOUD_CACHE
+#include "CloudCache.h"
+#endif
+
 #include "ts/hugepages.h"
 
 // Compilation Options
@@ -90,7 +94,7 @@ int cache_config_compatibility_4_2_0_fixup = 1;
 #endif
 #ifdef CLOUD_CACHE
 int cache_config_cloud_cache_enabled = 0;
-// cache_config_cloud_cache_provider = NULL
+char *cache_config_cloud_cache_provider = NULL;
 #endif
 
 
@@ -122,6 +126,9 @@ ClassAllocator<CacheRemoveCont> cacheRemoveContAllocator("cacheRemoveCont");
 ClassAllocator<EvacuationKey> evacuationKeyAllocator("evacuationKey");
 int CacheVC::size_to_init = -1;
 CacheKey zero_key;
+#ifdef CLOUD_CACHE
+CloudCache theCloudCache;
+#endif
 
 struct VolInitInfo {
   off_t recover_pos;
@@ -180,7 +187,6 @@ struct DiskInit : public Continuation {
   int
   mainEvent(int /* event ATS_UNUSED */, Event * /* e ATS_UNUSED */)
   {
-    Debug("http_flying_squid", "DiskInit::mainEvent");
     disk->open(s, blocks, askip, ahw_sector_size, fildes, clear);
     ats_free(s);
     mutex.clear();
@@ -766,7 +772,6 @@ CacheProcessor::start_internal(int flags)
 void
 CacheProcessor::diskInitialized()
 {
-  Debug("http_flying_squid", "CacheProcessor::diskInitialized");
   int n_init = ink_atomic_increment(&initialize_disk, 1);
   int bad_disks = 0;
   int res = 0;
@@ -1137,9 +1142,6 @@ inkcoreapi Action *
 CacheProcessor::open_read(Continuation *cont, const CacheKey *key, bool cluster_cache_local ATS_UNUSED, CacheFragType frag_type,
                           const char *hostname, int hostlen)
 {
-
-  Debug("http_flying_squid", "CacheProcessor::open_read 2")
-
 #ifdef CLUSTER_CACHE
   if (cache_clustering_enabled > 0 && !cluster_cache_local) {
     HttpCacheKey hkey;
@@ -3211,6 +3213,9 @@ ink_cache_init(ModuleVersion v)
   REC_EstablishStaticConfigInt32(cache_config_cloud_cache_enabled, "proxy.config.http.cache.cloud.enable");
   Debug("cache_init", "proxy.config.http.cache.cloud.enable = %d", cache_config_cloud_cache_enabled);
 
+  REC_EstablishStaticConfigStringAlloc(cache_config_cloud_cache_provider, "proxy.config.http.cache.cloud.provider");
+  Debug("cache_init", "proxy.config.http.cache.cloud.provider = %s", cache_config_cloud_cache_provider);
+
   REC_EstablishStaticConfigInteger(cache_config_ram_cache_size, "proxy.config.cache.ram_cache.size");
   Debug("cache_init", "proxy.config.cache.ram_cache.size = %" PRId64 " = %" PRId64 "Mb", cache_config_ram_cache_size,
         cache_config_ram_cache_size / (1024 * 1024));
@@ -3289,12 +3294,18 @@ ink_cache_init(ModuleVersion v)
 
   REC_ReadConfigInteger(cacheProcessor.wait_for_cache, "proxy.config.http.wait_for_cache");
 
+  const char *err = NULL;
+
 #ifdef CLOUD_CACHE
-  if (cache_config_cloud_cache_enabled > 0)
+  if (cache_config_cloud_cache_enabled > 0) {
+    if ((err = theCloudCache.read_config(cache_config_cloud_cache_provider))) {
+      printf("Failed to read cloud cache storage configuration - %s\n", err);
+      exit(1);
+    }
     return;
+  }
 #endif
 
-  const char *err = NULL;
   if ((err = theCacheStore.read_config())) {
     printf("Failed to read cache storage configuration - %s\n", err);
     exit(1);
@@ -3355,8 +3366,13 @@ if (cache_config_cloud_cache_enabled > 0) {
 Action *
 CacheProcessor::remove(Continuation *cont, const HttpCacheKey *key, bool cluster_cache_local, CacheFragType frag_type)
 {
-
-  Debug("http_flying_squid", "CacheProcessor::remove");
+#ifdef CLOUD_CACHE
+  if (cache_config_cloud_cache_enabled > 0) {
+    Debug("http_flying_squid", "cloud cache remove enabled")
+    // TODO: add Cache::remove method
+//    return Cache::remove(cont, key, request, params, ...)
+  }
+#endif
 
 #ifdef CLUSTER_CACHE
   if (cache_clustering_enabled > 0 && !cluster_cache_local) {
