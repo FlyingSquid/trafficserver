@@ -3210,12 +3210,6 @@ ink_cache_init(ModuleVersion v)
 
   cache_rsb = RecAllocateRawStatBlock((int)cache_stat_count);
 
-  REC_EstablishStaticConfigInt32(cache_config_cloud_cache_enabled, "proxy.config.http.cache.cloud.enable");
-  Debug("cache_init", "proxy.config.http.cache.cloud.enable = %d", cache_config_cloud_cache_enabled);
-
-  REC_EstablishStaticConfigStringAlloc(cache_config_cloud_cache_provider, "proxy.config.http.cache.cloud.provider");
-  Debug("cache_init", "proxy.config.http.cache.cloud.provider = %s", cache_config_cloud_cache_provider);
-
   REC_EstablishStaticConfigInteger(cache_config_ram_cache_size, "proxy.config.cache.ram_cache.size");
   Debug("cache_init", "proxy.config.cache.ram_cache.size = %" PRId64 " = %" PRId64 "Mb", cache_config_ram_cache_size,
         cache_config_ram_cache_size / (1024 * 1024));
@@ -3297,6 +3291,12 @@ ink_cache_init(ModuleVersion v)
   const char *err = NULL;
 
 #ifdef CLOUD_CACHE
+  REC_EstablishStaticConfigInt32(cache_config_cloud_cache_enabled, "proxy.config.http.cache.cloud.enable");
+  Debug("cache_init", "proxy.config.http.cache.cloud.enable = %d", cache_config_cloud_cache_enabled);
+
+  REC_EstablishStaticConfigStringAlloc(cache_config_cloud_cache_provider, "proxy.config.http.cache.cloud.provider");
+  Debug("cache_init", "proxy.config.http.cache.cloud.provider = %s", cache_config_cloud_cache_provider);
+
   if (cache_config_cloud_cache_enabled > 0) {
     if ((err = theCloudCache.read_config(cache_config_cloud_cache_provider))) {
       printf("Failed to read cloud cache storage configuration - %s\n", err);
@@ -3320,7 +3320,7 @@ CacheProcessor::open_read(Continuation *cont, const HttpCacheKey *key, bool clus
 #ifdef CLOUD_CACHE
   if (cache_config_cloud_cache_enabled > 0) {
     Debug("http_flying_squid", "cloud cache read enabled")
-//    return open_read(cont, key, request, params, ...)
+//    return theCloudCache.open_read(cont, key, request, params, pin_in_cache);
   }
 #endif
 
@@ -3342,7 +3342,7 @@ CacheProcessor::open_write(Continuation *cont, int expected_size, const HttpCach
 #ifdef CLOUD_CACHE
 if (cache_config_cloud_cache_enabled > 0) {
     Debug("http_flying_squid", "cloud cache write enabled")
-//    return open_write(cont, expected_size, key, request, old_info, ...)
+    return theCloudCache.open_write(cont, expected_size, key, request, old_info, pin_in_cache);
   }
 #endif
 

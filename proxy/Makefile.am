@@ -196,6 +196,8 @@ if BUILD_STATIC_PROXY
 traffic_server_LDFLAGS += -all-static
 endif
 
+# TODO: add if BUILD_CLOUDCACHE and if BUILD_AWSCACHE here and in configure.ac for sources, includes
+
 traffic_server_LDADD = \
   http/libhttp.a \
   http2/libhttp2.a \
@@ -233,7 +235,10 @@ traffic_server_LDADD = \
   @LIBPROFILER@ \
   @SPDYLAY_LIBS@ \
   @OPENSSL_LIBS@ \
-  -lm
+  -lm \
+  -L/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp-build/aws-cpp-sdk-core -laws-cpp-sdk-core \
+  -L/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp-build/aws-cpp-sdk-s3 -laws-cpp-sdk-s3 \
+  /usr/lib/x86_64-linux-gnu/libcurl.a -lidn -lrtmp -lssl -lcrypto -lssl -lcrypto -lgssapi_krb5 -lkrb5 -lk5crypto -lcom_err -llber -llber -lldap -lz
 
 if BUILD_LUAJIT
   traffic_server_LDADD += $(LUAJIT:%=$(top_builddir)/lib/luajit/src/%)
@@ -330,7 +335,10 @@ traffic_sac_LDADD = \
   @LIBPROFILER@ \
   @SPDYLAY_LIBS@ \
   @OPENSSL_LIBS@ \
-  -lm
+  -lm \
+  -L/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp-build/aws-cpp-sdk-core -laws-cpp-sdk-core \
+  -L/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp-build/aws-cpp-sdk-s3 -laws-cpp-sdk-s3 \
+  /usr/lib/x86_64-linux-gnu/libcurl.a -lidn -lrtmp -lssl -lcrypto -lssl -lcrypto -lgssapi_krb5 -lkrb5 -lk5crypto -lcom_err -llber -llber -lldap -lz
 
 if BUILD_TESTS
   traffic_sac_SOURCES += RegressionSM.cc

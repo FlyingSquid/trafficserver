@@ -1,6 +1,6 @@
 /** @file
  *
- *  CloudCache.h - general interface as a wrapper to cache operations
+ *  CloudCache.h - general class as a wrapper API to cache operations
  *  implemented by CloudProvider subclasses
  *
  *  @section license License
@@ -27,13 +27,13 @@
 
 #include "P_Cache.h"
 #include "CloudProvider.h"
-#include "AWSCache.h"
+
 
 class CloudCache
 {
 public:
   CloudCache() {}
-  ~CloudCache();
+  ~CloudCache() {}
 
   /**
    * Called to read the provider specific configuration file and initialize
@@ -42,13 +42,24 @@ public:
    */
   const char *read_config(char *cloud_provider);
 
-//  Action *open_read();
-//  Action *open_write();
+  /**
+   * TODO: document
+   */
+  Action *open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
+                    CacheLookupHttpConfig *params, time_t pin_in_cache);
+
+  /**
+   * TODO: document
+   */
+  Action *open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
+                     CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache);
+
+  // TODO: find the other cache actions and implement
 //  Action *remove();
-//  etc.
+
 
 private:
-//  CloudProvider *cCache;
+  CloudProvider *cCache;
 };
 
 #endif /* __CLOUD_CACHE_H__ */

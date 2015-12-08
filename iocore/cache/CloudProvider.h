@@ -1,7 +1,7 @@
 /** @file
  *
- *  CloudCache.h - general interface as a wrapper to cache operations
- *  implemented by CloudProvider subclasses
+ *  CloudProvider.h - interface for cloud cache operations, implemented
+ *  by specific cloud provider classes
  *
  *  @section license License
  *
@@ -22,22 +22,23 @@
  *  limitations under the License.
  */
 
-#ifndef __AWS_CACHE_H__
-#define __AWS_CACHE_H__
+#ifndef __CLOUD_PROVIDER_H__
+#define __CLOUD_PROVIDER_H__
 
-#include "CloudProvider.h"
 
-#define PROVIDER_NAME_AWS "AWS"
-
-class AWSCache : public CloudProvider
+class CloudProvider
 {
 public:
-  AWSCache() {}
-  ~AWSCache() {}
+//  CloudProvider() {}
+  virtual ~CloudProvider() {}
 
-  const char *read_config() {return NULL;}
-private:
+  virtual const char *read_config() = 0;
 
+  //  virtual Action *open_read() = 0;
+
+  virtual Action *open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
+                             CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache) = 0;
+//private:
 };
 
-#endif /* __AWS_CACHE_H__ */
+#endif /* __CLOUD_PROVIDER_H__ */

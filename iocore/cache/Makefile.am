@@ -16,14 +16,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-SUBDIRS = cloud
-
 AM_CPPFLAGS = \
   $(iocore_include_dirs) \
   -I$(top_srcdir)/lib \
   -I$(top_srcdir)/lib/records \
-  -I$(srcdir)/cloud \
-  -I$(srcdir)/cloud/aws \
   -I$(top_srcdir)/proxy/api/ts \
   -I$(top_srcdir)/proxy \
   -I$(top_srcdir)/proxy/hdrs \
@@ -31,12 +27,16 @@ AM_CPPFLAGS = \
   -I$(top_srcdir)/proxy/shared \
   -I$(top_srcdir)/proxy/http/remap \
   -I$(top_srcdir)/mgmt \
-  -I$(top_srcdir)/mgmt/utils
+  -I$(top_srcdir)/mgmt/utils \
+  -I/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp/aws-cpp-sdk-core/include \
+  -I/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp/aws-cpp-sdk-s3/include
 
 ADD_SRC =
 if BUILD_TESTS
-  ADD_SRC += CacheTest.cc P_CacheTest.h 
+  ADD_SRC += CacheTest.cc P_CacheTest.h
 endif
+
+# TODO: add if BUILD_CLOUDCACHE and if BUILD_AWSCACHE here and in configure.ac for sources, includes
 
 noinst_LIBRARIES = libinkcache.a
 
@@ -68,7 +68,9 @@ libinkcache_a_SOURCES = \
   RamCacheCLFUS.cc \
   RamCacheLRU.cc \
   Store.cc \
-  cloud/CloudCache.h \
-  cloud/CloudCache.cc \
-  cloud/CloudProvider.h \
+  CloudCache.h \
+  CloudCache.cc \
+  CloudProvider.h \
+  AWSCache.h \
+  AWSCache.cc \
   $(ADD_SRC)

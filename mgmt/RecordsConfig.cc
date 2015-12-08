@@ -724,8 +724,8 @@ static const RecordElement RecordsConfig[] =
   ,
   {RECT_CONFIG, "proxy.config.http.cache.cloud.provider", RECD_STRING, NULL, RECU_RESTART_TS, RR_NULL, RECC_STR, ".*", RECA_NULL}
   ,
-//  {RECT_CONFIG, "proxy.config.http.cache.cloud.provider.aws.config_filename", RECD_STRING, "aws_cache.config", RECU_RESTART_TS, RR_NULL, RECC_NULL, NULL, RECA_NULL}
-//  ,
+  {RECT_CONFIG, "proxy.config.http.cache.cloud.provider.aws.config_filename", RECD_STRING, "aws_cache.config", RECU_RESTART_TS, RR_NULL, RECC_NULL, NULL, RECA_NULL}
+  ,
 
   //        #########################################
   //        # dynamic content & content negotiation #

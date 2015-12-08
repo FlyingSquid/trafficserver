@@ -1,7 +1,7 @@
 /** @file
  *
- *  CloudProvider.h - abstract class for cache operations, implemented
- *  by specific cloud provider classes
+ *  AWSCache.h - AWS specific cache operations, implements
+ *  CloudProvider interface
  *
  *  @section license License
  *
@@ -22,17 +22,33 @@
  *  limitations under the License.
  */
 
-#ifndef __CLOUD_PROVIDER_H__
-#define __CLOUD_PROVIDER_H__
+#ifndef __AWS_CACHE_H__
+#define __AWS_CACHE_H__
 
-class CloudProvider
+#include <aws/s3/S3Client.h>
+
+#include "CloudCache.h"
+
+#define PROVIDER_NAME_AWS "AWS"
+
+
+class AWSCache : public CloudProvider
 {
 public:
-  virtual ~CloudProvider() {}
+  AWSCache();
+  ~AWSCache();
 
-  virtual const char *read_config() = 0;
+  const char *read_config();
+
+  Action *open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
+                    CacheLookupHttpConfig *params, time_t pin_in_cache);
+
+  Action *open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
+                     CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache);
 private:
+  const char *bucket_name;
 
+  Aws::S3::S3Client s3client;
 };
 
-#endif /* __CLOUD_PROVIDER_H__ */
+#endif /* __AWS_CACHE_H__ */
