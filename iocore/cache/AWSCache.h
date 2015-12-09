@@ -38,17 +38,25 @@ public:
   AWSCache();
   ~AWSCache();
 
-  const char *read_config();
+  virtual const char *read_config();
 
-  Action *open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
-                    CacheLookupHttpConfig *params, time_t pin_in_cache);
+  // TODO: this interface will change, will move event/continuation handling to CloudCache::open_write etc.
 
-  Action *open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
-                     CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache);
+  virtual Action *open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
+                            CacheLookupHttpConfig *params, time_t pin_in_cache);
+
+  virtual Action *open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
+                             CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache);
+
 private:
-  const char *bucket_name;
+  const char *s3bucket_name;
 
-  Aws::S3::S3Client s3client;
+  Aws::S3::S3Client s3Client;
+
+  // TODO: implement these for cleanliness, should just take a key, metadata, iostream etc.
+//  s3_put()
+//  s3_get()
+//  s3_delete()
 };
 
 #endif /* __AWS_CACHE_H__ */

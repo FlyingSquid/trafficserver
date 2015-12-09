@@ -34,11 +34,13 @@ public:
 
   virtual const char *read_config() = 0;
 
-  //  virtual Action *open_read() = 0;
+  // TODO: simply pass an iostream, key, metadata, cleaned up by CloudCache::open_read etc.
+
+  virtual Action *open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
+                             CacheLookupHttpConfig *params, time_t pin_in_cache) = 0;
 
   virtual Action *open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
                              CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache) = 0;
-//private:
 };
 
 #endif /* __CLOUD_PROVIDER_H__ */

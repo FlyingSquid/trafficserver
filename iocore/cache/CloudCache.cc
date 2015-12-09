@@ -61,8 +61,7 @@ Action *
 CloudCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
                       CacheLookupHttpConfig *params, time_t pin_in_cache)
 {
-//  cCache->open_read();
-  return NULL;
+  return cCache->open_read(cont, key, request, params, pin_in_cache);
 }
 
 Action *

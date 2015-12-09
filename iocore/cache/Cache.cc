@@ -3320,7 +3320,7 @@ CacheProcessor::open_read(Continuation *cont, const HttpCacheKey *key, bool clus
 #ifdef CLOUD_CACHE
   if (cache_config_cloud_cache_enabled > 0) {
     Debug("http_flying_squid", "cloud cache read enabled")
-//    return theCloudCache.open_read(cont, key, request, params, pin_in_cache);
+    return theCloudCache.open_read(cont, key, request, params, pin_in_cache);
   }
 #endif
 
