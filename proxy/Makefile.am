@@ -162,6 +162,10 @@ traffic_server_SOURCES = \
   InkIOCoreAPI.cc \
   Main.cc \
   Main.h \
+  ParentConsistentHash.cc \
+  ParentConsistentHash.h \
+  ParentRoundRobin.cc \
+  ParentRoundRobin.h \
   ParentSelection.cc \
   ParentSelection.h \
   Plugin.cc \
@@ -281,6 +285,8 @@ traffic_sac_SOURCES = \
   ICPProcessor.cc \
   ICPStats.cc \
   IPAllow.cc \
+  ParentConsistentHash.cc \
+  ParentRoundRobin.cc \
   ParentSelection.cc \
   ControlBase.cc \
   ControlMatcher.cc \

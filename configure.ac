@@ -32,8 +32,8 @@
 # Version number is calculated as MAJOR * 1000000 + MINOR * 1000 + MICRO
 # Version string is in the form of MAJOR.MINOR.MICRO[sufix]
 #
-m4_define([TS_VERSION_S],[6.1.0])
-m4_define([TS_VERSION_N],[6001000])
+m4_define([TS_VERSION_S],[6.2.0])
+m4_define([TS_VERSION_N],[6002000])
 
 AC_INIT([Apache Traffic Server], TS_VERSION_S(), [dev@trafficserver.apache.org], [trafficserver],[http://trafficserver.apache.org])
 AC_PREREQ([2.59])
@@ -139,9 +139,9 @@ AC_ARG_WITH([build-number],
 #
 # Build environment
 #
-build_person="`id -nu`"
-build_group="`id -ng`"
-build_machine="`uname -n`"
+build_person="`id -nu | sed -e 's/\\\\/\\\\\\\\/g'`"
+build_group="`id -ng | sed -e 's/\\\\/\\\\\\\\/g'`"
+build_machine="`uname -n | sed -e 's/\\\\/\\\\\\\\/g'`"
 AC_SUBST([build_machine])
 AC_SUBST([build_person])
 AC_SUBST([build_group])
@@ -1923,6 +1923,7 @@ AS_IF([test "x$enable_experimental_plugins" = "xyes"], [
     plugins/experimental/buffer_upload/Makefile
     plugins/experimental/cache_range_requests/Makefile
     plugins/experimental/channel_stats/Makefile
+    plugins/experimental/cachekey/Makefile
     plugins/experimental/cache_promote/Makefile
     plugins/experimental/collapsed_connection/Makefile
     plugins/experimental/custom_redirect/Makefile
@@ -1934,6 +1935,7 @@ AS_IF([test "x$enable_experimental_plugins" = "xyes"], [
     plugins/experimental/geoip_acl/Makefile
     plugins/experimental/header_normalize/Makefile
     plugins/experimental/hipes/Makefile
+    plugins/experimental/memcache/Makefile
     plugins/experimental/memcached_remap/Makefile
     plugins/experimental/metalink/Makefile
     plugins/experimental/multiplexer/Makefile

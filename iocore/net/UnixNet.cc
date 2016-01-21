@@ -510,6 +510,8 @@ NetHandler::mainNetEvent(int event, Event *e)
 #if defined(USE_EDGE_TRIGGER)
   // UnixNetVConnection *
   while ((vc = read_ready_list.dequeue())) {
+    // Initialize the thread-local continuation flags
+    set_cont_flags(vc->control_flags);
     if (vc->closed)
       close_UnixNetVConnection(vc, trigger_event->ethread);
     else if (vc->read.enabled && vc->read.triggered)
@@ -526,6 +528,7 @@ NetHandler::mainNetEvent(int event, Event *e)
     }
   }
   while ((vc = write_ready_list.dequeue())) {
+    set_cont_flags(vc->control_flags);
     if (vc->closed)
       close_UnixNetVConnection(vc, trigger_event->ethread);
     else if (vc->write.enabled && vc->write.triggered)
@@ -543,6 +546,7 @@ NetHandler::mainNetEvent(int event, Event *e)
   }
 #else  /* !USE_EDGE_TRIGGER */
   while ((vc = read_ready_list.dequeue())) {
+    diags->set_override(vc->control.debug_override);
     if (vc->closed)
       close_UnixNetVConnection(vc, trigger_event->ethread);
     else if (vc->read.enabled && vc->read.triggered)
@@ -551,6 +555,7 @@ NetHandler::mainNetEvent(int event, Event *e)
       vc->ep.modify(-EVENTIO_READ);
   }
   while ((vc = write_ready_list.dequeue())) {
+    diags->set_override(vc->control.debug_override);
     if (vc->closed)
       close_UnixNetVConnection(vc, trigger_event->ethread);
     else if (vc->write.enabled && vc->write.triggered)
@@ -586,7 +591,8 @@ NetHandler::manage_active_queue()
   int total_idle_time = 0;
   int total_idle_count = 0;
   for (; vc != NULL; vc = vc_next) {
-    if ((vc->next_inactivity_timeout_at > now) || (vc->next_activity_timeout_at > now)) {
+    vc_next = vc->active_queue_link.next;
+    if ((vc->next_inactivity_timeout_at <= now) || (vc->next_activity_timeout_at <= now)) {
       _close_vc(vc, now, handle_event, closed, total_idle_time, total_idle_count);
     }
     if (max_connections_active_per_thread_in > active_queue_size) {
@@ -630,7 +636,7 @@ NetHandler::manage_keep_alive_queue()
   int total_idle_time = 0;
   int total_idle_count = 0;
   for (UnixNetVConnection *vc = keep_alive_queue.head; vc != NULL; vc = vc_next) {
-    vc_next = vc->active_queue_link.next;
+    vc_next = vc->keep_alive_queue_link.next;
     _close_vc(vc, now, handle_event, closed, total_idle_time, total_idle_count);
 
     total_connections_in = active_queue_size + keep_alive_queue_size;

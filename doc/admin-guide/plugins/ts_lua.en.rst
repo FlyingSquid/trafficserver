@@ -137,13 +137,14 @@ ts.now
 
 **context:** global
 
-**description:** This function returns the time since the Epoch (00:00:00 UTC, January 1, 1970), measured in seconds.
+**description:** This function returns the time since the Epoch (00:00:00 UTC, January 1, 1970), measured in seconds. It
+includes milliseconds as the decimal part.
 
 Here is an example:
 
 ::
 
-    local nt = ts.now()  -- 1395221053
+    local nt = ts.now()  -- 1395221053.123
 
 `TOP <#ts-lua-plugin>`_
 
@@ -2374,6 +2375,36 @@ Here is an example:
     function do_remap()
         ts.hook(TS_LUA_HOOK_READ_RESPONSE_HDR, read_response)
         ts.hook(TS_LUA_HOOK_SEND_RESPONSE_HDR, send_response)
+    end
+
+`TOP <#ts-lua-plugin>`_
+
+ts.schedule
+-----------
+**syntax:** *ts.schedule(THREAD_TYPE, sec, FUNCTION, param1?, param2?, ...)*
+
+**context:** *after do_remap*
+
+**description:** Schedule function to be run after specified seconds without blocking.
+
+Behind the scene, this method makes use of the ATS event model.
+
+Here is an example:
+
+::
+
+    function schedule()
+        ts.debug('test schedule starts')
+    end
+
+    function cache_lookup()
+        ts.debug('cache-lookup')
+        ts.schedule(TS_LUA_THREAD_POOL_NET, 0, schedule)
+        return 0
+    end
+
+    function do_remap()
+        ts.hook(TS_LUA_HOOK_CACHE_LOOKUP_COMPLETE, cache_lookup)
     end
 
 `TOP <#ts-lua-plugin>`_

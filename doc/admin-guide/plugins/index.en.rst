@@ -75,12 +75,14 @@ directory of the Apache Traffic Server source tree. Experimental plugins can be 
   Balancer: balances requests across multiple origin servers <balancer.en>
   Buffer Upload: buffers POST data before connecting to the Origin server <buffer_upload.en>
   Cache Promotion: provides additional control over when an object should be allowed into the cache <cache_promote.en>
+  Cachekey: allows some common cache key manipulations based on various HTTP request elements <cachekey.en> 
   Combo Handler: provides an intelligent way to combine multiple URLs into a single URL, and have Apache Traffic Server combine the components into one response <combo_handler.en>
   ESI: implements the ESI specification <esi.en>
   Epic: emits Traffic Server metrics in a format that is consumed tby the Epic Network Monitoring System <epic.en>
   Generator: generate arbitrary response data <generator.en>
   GeoIP ACLs: denying (or allowing) requests based on the source IP geo-location <geoip_acl.en>
   MP4: mp4 streaming media <mp4.en>
+  Memcache: implements the memcache protocol for cache contents <memcache.en>
   Metalink: implements the Metalink download description format in order to try not to download the same file twice. <metalink.en>
   MySQL Remap: allows dynamic “remaps” from a database <mysql_remap.en>
   SSL Headers: Populate request headers with SSL session information <sslheaders.en>
