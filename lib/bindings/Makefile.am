@@ -1,6 +1,4 @@
-#!/bin/sh
-#
-#  Simple wrapper to run clang-format on a bunch of files
+#  Makefile.am
 #
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -18,10 +16,27 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-DIR=${1:-.}
-FORMAT=${FORMAT:-clang-format}
+AM_CPPFLAGS = \
+  $(LUAJIT_CPPFLAGS) \
+  -I$(top_srcdir)/lib \
+  -I$(top_srcdir)/lib/records
 
-for file in $(find $DIR -iname \*.[ch] -o -iname \*.cc); do
-    echo $file
-    $FORMAT -i $file
-done
+AM_CXXFLAGS = \
+  $(LUAJIT_CFLAGS)
+
+if BUILD_LUAJIT
+
+noinst_LTLIBRARIES = libbindings.la
+
+libbindings_la_SOURCES = \
+  bindings.cc \
+  bindings.h \
+  lua.cc \
+  lua.h \
+  metrics.cc \
+  metrics.h \
+  repl.cc \
+  repl.h
+
+endif
+
