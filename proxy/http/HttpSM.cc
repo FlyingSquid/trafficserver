@@ -5818,6 +5818,7 @@ HttpSM::setup_server_read_response_header()
 HttpTunnelProducer *
 HttpSM::setup_cache_read_transfer()
 {
+  Debug("cloud_cache_aws", "***********************");
   int64_t alloc_index, hdr_size;
   int64_t doc_size;
 
@@ -5899,6 +5900,7 @@ void
 HttpSM::setup_cache_write_transfer(HttpCacheSM *c_sm, VConnection *source_vc, HTTPInfo *store_info, int64_t skip_bytes,
                                    const char *name)
 {
+  Debug("http_seq", "[HttpSM::setup_cache_write_transfer] ***************** ");
   ink_assert(c_sm->cache_write_vc != NULL);
   ink_assert(t_state.request_sent_time > 0);
   ink_assert(t_state.response_received_time > 0);

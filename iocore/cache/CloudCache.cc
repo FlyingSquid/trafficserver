@@ -44,7 +44,7 @@ CloudCache::read_config(char *cloud_provider)
 
   // create provider object based on name
   if (strcmp(cloud_provider, PROVIDER_NAME_AWS) == 0)
-    cCache = new AWSCache();
+    cCache = new DefaultAWSCache();
   else {
     err = "Invalid cloud cache provider name specified in records.config";
     goto Lfail;

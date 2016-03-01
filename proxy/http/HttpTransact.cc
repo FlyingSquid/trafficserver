@@ -2761,6 +2761,8 @@ HttpTransact::HandleCacheOpenReadHit(State *s)
     SET_VIA_STRING(VIA_CACHE_RESULT, VIA_IN_CACHE_FRESH);
   }
 
+  // TODO: set another level of cache hit (CloudFront/S3)
+
   if (s->cache_lookup_result == CACHE_LOOKUP_HIT_WARNING) {
     build_response_from_cache(s, HTTP_WARNING_CODE_HERUISTIC_EXPIRATION);
   } else if (s->cache_lookup_result == CACHE_LOOKUP_HIT_STALE) {
@@ -7859,14 +7861,19 @@ void
 HttpTransact::build_response(State *s, HTTPHdr *base_response, HTTPHdr *outgoing_response, HTTPVersion outgoing_version,
                              HTTPStatus status_code, const char *reason_phrase)
 {
+  Debug("http_response", "[HttpTransact::build_response] ******** got here");
+
+
   if (reason_phrase == NULL) {
     reason_phrase = http_hdr_reason_lookup(status_code);
   }
 
   if (base_response == NULL) {
+    Debug("http_response", "[HttpTransact::build_response] build_base_response");
     HttpTransactHeaders::build_base_response(outgoing_response, status_code, reason_phrase, strlen(reason_phrase), s->current.now);
   } else {
     if ((status_code == HTTP_STATUS_NONE) || (status_code == base_response->status_get())) {
+      Debug("http_response", "[HttpTransact::build_response] copy_header_fields");
       HttpTransactHeaders::copy_header_fields(base_response, outgoing_response, s->txn_conf->fwd_proxy_auth_to_parent);
 
       if (s->txn_conf->insert_age_in_response)

@@ -32,11 +32,20 @@
 #define PROVIDER_NAME_AWS "AWS"
 
 
-class AWSCache : public CloudProvider
+// AWS Cache Actions
+
+void AWS_S3_get();
+void AWS_S3_put();
+void AWS_S3_delete();
+void AWS_CloudFront_put();
+//void AWS_CloudFront_
+
+
+class DefaultAWSCache : public CloudProvider
 {
 public:
-  AWSCache();
-  ~AWSCache();
+  DefaultAWSCache();
+  ~DefaultAWSCache();
 
   virtual const char *read_config();
 

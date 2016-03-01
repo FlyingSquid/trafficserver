@@ -29,6 +29,8 @@
 #include <aws/core/utils/HashingUtils.h>
 
 #include "AWSCache.h"
+#include "HttpSM.h"
+#include "HttpCacheSM.h"
 
 #define AWSCACHE_ALLOCATION_TAG "AWSCache"
 #define REC_CONFIG_AWS_CONFIG_FILE_FIELD "proxy.config.http.cache.cloud.provider.aws.config_filename"
@@ -41,12 +43,12 @@ using namespace Aws::S3::Model;
 using namespace Aws::Auth;
 using namespace Aws::Utils;
 
-AWSCache::AWSCache() : CloudProvider() {}
+DefaultAWSCache::DefaultAWSCache() : CloudProvider() {}
 
-AWSCache::~AWSCache() {}
+DefaultAWSCache::~DefaultAWSCache() {}
 
 const char *
-AWSCache::read_config()
+DefaultAWSCache::read_config()
 {
   const char *err = NULL;
   ats_scoped_fd fd;
@@ -75,18 +77,47 @@ Lfail:
 }
 
 Action *
-AWSCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
+DefaultAWSCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
                     CacheLookupHttpConfig *params, time_t pin_in_cache)
 {
   Debug("cloud_cache_aws", "starting cache read");
 
-  // TODO: change to list object request
+  int64_t doc_size; // get from buffer size
+
+  HttpTunnel tunnel = ((HttpCacheSM *)cont)->master_sm->get_tunnel();
+
+  HttpTunnelProducer *p = tunnel.add_producer(cache_sm.cache_read_vc, doc_size, buf_start, &HttpSM::tunnel_handler_cache_read,
+                                            HT_CACHE_READ, "cache read");
+  tunnel.add_consumer(ua_entry->vc, cache_sm.cache_read_vc, &HttpSM::tunnel_handler_ua, HT_HTTP_CLIENT, "user agent");
+
+//  Debug("cloud_cache_aws", "num_read_tries %d", num_open_read_tries);
+
+  string key_hash = to_string(cache_hash(key->hash));
+
+
+  ListObjectsRequest listObjectsRequest;
+  listObjectsRequest.SetBucket(s3bucket_name);
+  ListObjectsOutcome listObjectsOutcome = s3Client->ListObjects(listObjectsRequest);
+  if (listObjectsOutcome.IsSUccess()) {
+    Debug("cloud_cache_aws", "S3 bucket (%s) list objects request success", s3bucket_name);
+  } else {
+    Debug("cloud_cache_aws", "S3 bucket (%s) list objects request failed", s3bucket_name);
+  }
+
+  bool object_found = false;
+  for (const auto &object : listObjectsOutcome.GetResult().GetContents()) {
+    if (object.GetKey() == key_hash) {
+      Debug("cloud_cache_aws", "Found object in ", s3bucket_name);
+      object_found = true;
+      break;
+    }
+  }
 
   // s3 get object request
   GetObjectRequest getObjectRequest;
   getObjectRequest.SetBucket(s3bucket_name);
   // TODO: get hash string a better way?
-  unsigned int key_hash = cache_hash(key->hash);
+
   Debug("cloud_cache_aws", "cache read hash key: %u", key_hash);
   getObjectRequest.SetKey(std::to_string(key_hash));
   std::stringbuf buf;
@@ -98,7 +129,7 @@ AWSCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *r
   auto getObjectOutcome = s3Client.GetObject(getObjectRequest);
   if(getObjectOutcome.IsSuccess()) {
     Debug("cloud_cache_aws", "S3 bucket (%s) hit and download success for key: %u", s3bucket_name, key_hash);
-    std::cout << buf.str();
+//    std::cout << buf.str();
   } else { // TODO: change to list bucket objects, inspect outcome more to set the event handling properly
     Debug("cloud_cache_aws", "S3 bucket (%s) cache miss for key: %u", s3bucket_name, key_hash);
 //    CACHE_INCREMENT_DYN_STAT(cache_read_failure_stat);
@@ -110,7 +141,7 @@ AWSCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *r
 }
 
 Action *
-AWSCache::open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
+DefaultAWSCache::open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
                      CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache)
 {
   Debug("cloud_cache_aws", "starting cache write");

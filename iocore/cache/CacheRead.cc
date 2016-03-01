@@ -145,6 +145,10 @@ Cache::open_read(Continuation *cont, const CacheKey *key, CacheHTTPHdr *request,
     }
   }
 Lmiss:
+#ifdef CLOUD_CACHE
+  SET_CONTINUATION_HANDLER(cont, &CloudCache::open_read);
+  return &cont->_action;
+#endif
   CACHE_INCREMENT_DYN_STAT(cache_read_failure_stat);
   cont->handleEvent(CACHE_EVENT_OPEN_READ_FAILED, (void *)-ECACHE_NO_DOC);
   return ACTION_RESULT_DONE;
@@ -160,13 +164,6 @@ Lcallreturn:
     return ACTION_RESULT_DONE;
   return &c->_action;
 }
-#endif
-
-#ifdef CLOUD_CACHE
-//Action *
-//Cache::open_read()
-//{
-//}
 #endif
 
 uint32_t
