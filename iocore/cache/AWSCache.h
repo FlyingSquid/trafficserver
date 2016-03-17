@@ -28,20 +28,20 @@
 #include <aws/s3/S3Client.h>
 
 #include "CloudCache.h"
+#include "RedisClient.h"
+#include "redlock.h"
 
-#define PROVIDER_NAME_AWS "AWS"
+#define PROVIDER_NAME_AWS
+
+// Redis lock manager constants
+#define REDLOCK_MAX_NUM_RETRIES 10
+#define REDLOCK_RETRY_DELAY_MS 200
+#define REDLOCK_TTL 1000
+
+#define AWS_CF_URL_FORMAT "http://%s/"
 
 
-// AWS Cache Actions
-
-void AWS_S3_get();
-void AWS_S3_put();
-void AWS_S3_delete();
-void AWS_CloudFront_put();
-//void AWS_CloudFront_
-
-
-class DefaultAWSCache : public CloudProvider
+class DefaultAWSCache : public CloudCacheProviderImpl
 {
 public:
   DefaultAWSCache();
@@ -57,15 +57,52 @@ public:
   virtual Action *open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
                              CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache);
 
-private:
-  const char *s3bucket_name;
+protected:
+#pragma pack(1)
+  struct ObjectCacheMeta {
+    int64_t size; // Object size in bytes
+    // TODO: add response headers
+    long lastAccessed;
+    long cloudFrontExpiry;
+  };
+#pragma pack(0)
 
+  // Lock manager used to get and release locks on Redis resources
+  // Locks are required in order to prevent multiple requests modifying metadata/moving objects in the cache
+  CRedLock *redisLockManager;
+  CRedisClient redisClient;
+
+  string s3BucketName;
+  string cloudFrontDistrBase;
   Aws::S3::S3Client s3Client;
 
-  // TODO: implement these for cleanliness, should just take a key, metadata, iostream etc.
-//  s3_put()
-//  s3_get()
-//  s3_delete()
+  // Try to obtain the Redis lock for an object and return success or failure
+  // lock passed in is updated with the lock meta if successful
+  bool getRedisObjectLock(string key, CLock &lock);
+
+  // Release Redis lock for an object, return success or failure (always returns true for now)
+  bool releaseRedisObjectLock(string key, Clock &lock);
+
+  // Check if object in distributed cache by checking Redis cluster for existence of object metadata
+  bool objectInCache(string key);
+
+  ObjectCacheMeta getObjectCacheMeta(string key);
+
+  // Check if object's CloudFront expiry is in the future
+  bool objectInCloudFront(ObjectCacheMeta m);
+
+  // Save object metadata in Redis datastore and S3 (expiry field)
+  bool putObjectCacheMeta(string key, ObjectCacheMeta m);
+
+  // Get CloudFront resource URL (for redirecting client)
+  string getObjectCloudFrontLocation(string key);
+
+//  putObjectS3(string key, buffer/VIO thing/pointer etc.);
+
+  char *getObjectS3(string key, const char *rangeValue);
+
+//  moveObjectToRAM(string key);
+
 };
 
 #endif /* __AWS_CACHE_H__ */

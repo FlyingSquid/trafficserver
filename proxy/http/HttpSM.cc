@@ -5824,7 +5824,11 @@ HttpSM::setup_cache_read_transfer()
 
   ink_assert(cache_sm.cache_read_vc != NULL);
 
+#ifdef CLOUD_CACHE
+  doc_size = CloudCache::get_object_size(t_state.cloud_cache_info);
+#else
   doc_size = t_state.cache_info.object_read->object_size_get();
+#endif
   alloc_index = buffer_size_to_index(doc_size + index_to_buffer_size(HTTP_HEADER_BUFFER_SIZE_INDEX));
 
 #ifndef USE_NEW_EMPTY_MIOBUFFER
@@ -5839,8 +5843,14 @@ HttpSM::setup_cache_read_transfer()
   IOBufferReader *buf_start = buf->alloc_reader();
 
   // Now dump the header into the buffer
+#ifdef CLOUD_CACHE
+  char *hdr = CloudCache::get_response_header(t_state.cloud_cache_info);
+  client_response_hdr_bytes = hdr_size = strlen(hdr);
+  buf->write(hdr, hdr_size);
+#else
   ink_assert(t_state.hdr_info.client_response.status_get() != HTTP_STATUS_NOT_MODIFIED);
   client_response_hdr_bytes = hdr_size = write_response_header_into_buffer(&t_state.hdr_info.client_response, buf);
+#endif
   cache_response_hdr_bytes = client_response_hdr_bytes;
 
 

@@ -798,6 +798,9 @@ public:
 
     HttpConfigParams *http_config_param;
     CacheLookupInfo cache_info;
+#ifdef CLOUD_CACHE
+    void *cloud_cache_info;
+#endif
     DNSLookupInfo dns_info;
     bool force_dns;
     RedirectInfo redirect_info;

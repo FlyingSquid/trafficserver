@@ -30,6 +30,8 @@ AM_CPPFLAGS = \
   -I$(top_srcdir)/mgmt/utils \
   -I/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp/aws-cpp-sdk-core/include \
   -I/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp/aws-cpp-sdk-s3/include
+  -I/home/sunjay/Documents/FlyingSquid/redlock-cpp/redlock-cpp \
+
 
 ADD_SRC =
 if BUILD_TESTS
@@ -73,4 +75,6 @@ libinkcache_a_SOURCES = \
   CloudProvider.h \
   AWSCache.h \
   AWSCache.cc \
+  RedisClient.h \
+  RedisClient.cc \
   $(ADD_SRC)

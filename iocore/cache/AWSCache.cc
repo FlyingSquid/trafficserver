@@ -43,9 +43,119 @@ using namespace Aws::S3::Model;
 using namespace Aws::Auth;
 using namespace Aws::Utils;
 
-DefaultAWSCache::DefaultAWSCache() : CloudProvider() {}
+
+DefaultAWSCache::DefaultAWSCache() : CloudProvider() {
+  // Initialize Redis client
+  if (!redisCli.Initialize("127.0.0.1", 30001, 2, 10)) { // TODO: get values from config file
+    // TODO: handle error
+  }
+
+  // Initialize Redis lock manager
+  redisLockManager = new CRedLock();
+  redisLockManager->AddServerUrl("127.0.0.1", 30001); // TODO: get these values from config file
+  redisLockManager->SetRetry(REDLOCK_MAX_NUM_RETRIES, REDLOCK_RETRY_DELAY_MS);
+
+  // TODO: Set S3 bucket name here?
+}
+
 
 DefaultAWSCache::~DefaultAWSCache() {}
+
+
+bool DefaultAWSCache::getRedisObjectLock(string key, CLock &lock)
+{
+  return redisLockManager->ContinueLock(key.c_str(), REDLOCK_TTL, lock);
+}
+
+
+bool DefaultAWSCache::releaseRedisObjectLock(string key, Clock &lock)
+{
+  // Redlock library has this always return true
+  return redisLockManager->Unlock(lock);
+}
+
+
+bool DefaultAWSCache::objectInCache(string key)
+{
+  long exists;
+  if (redisClient.Exists(key, exists) == RC_SUCCESS) {
+    return (exists == 1);
+  }
+  // TODO: handle error
+}
+
+
+ObjectCacheMeta DefaultAWSCache::getObjectCacheMeta(string key)
+{
+  string value;
+  if (redisClient.Get(key, &value) == RC_SUCCESS) {
+    return (ObjectCacheMeta) value.c_str();
+  }
+  // TODO: handle error
+}
+
+
+inline long getNowTimestamp() {
+  return (long) duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
+
+
+bool DefaultAWSCache::objectInCloudFront(ObjectCacheMeta m)
+{
+  // TODO: add fuzziness in this check (if within certain threshold, return true)?
+  return m.cloudFrontExpiry > getNowTimestamp();
+}
+
+
+bool DefaultAWSCache::putObjectCacheMeta(string key, ObjectCacheMeta m)
+{
+  // Set expiry time in Redis metadata store
+  if (redisClient.Set(key, string((char *) m)) == RC_SUCCESS) {
+    // Set expiry time on S3 object
+    CopyObjectRequest copyObjectRequest;
+    copyObjectRequest.SetExpires((double) m.cloudFrontExpiry);
+    CopyObjectOutcome copyObjectOutcome = s3Client->CopyObject(copyObjectRequest);
+    if (CopyObjectOutcome.IsSuccess()) {
+      // TODO: handle success, return true?
+    } else {
+      // TODO: handle error, return false?
+    }
+
+  }
+  // TODO: handle error
+}
+
+
+string DefaultAWSCache::getObjectCloudFrontLocation(string key)
+{
+  return cloudFrontDistrBase + key;
+}
+
+getObjectS3(string key, const char *rangeValue = NULL)
+{
+  GetObjectRequest getObjectRequest;
+  getObjectRequest.SetBucket(s3BucketName);
+  getObjectRequest.SetKey(key);
+  if (rangeValue) {
+    getObjectRequest.SetRange(rangeValue);
+  }
+
+  std::stringbuf buf;
+  getObjectRequest.SetResponseStreamFactory(
+    [&buf](){
+      return Aws::New<Aws::IOStream>(AWSCACHE_ALLOCATION_TAG, &buf);
+    }
+  );
+  auto getObjectOutcome = s3Client.GetObject(getObjectRequest);
+  if(getObjectOutcome.IsSuccess()) {
+    Debug("cloud_cache_aws", "S3 bucket (%s) hit and download success for key: %u", s3BucketName, key);
+    return buf.str().c_str();
+  } else { // TODO: change to list bucket objects, inspect outcome more to set the event handling properly
+    Debug("cloud_cache_aws", "S3 bucket (%s) cache miss for key: %u", s3BucketName, key);
+    return NULL;
+  }
+}
+
 
 const char *
 DefaultAWSCache::read_config()
@@ -64,6 +174,7 @@ DefaultAWSCache::read_config()
 
   // TODO: finish reading of config file, look at Store.cc
 
+  // TODO: read CloudFront distribution name
   s3bucket_name = "flyingsquid-ats-test2-sunjay";
 
 //  ::close(fd);
@@ -80,87 +191,108 @@ Action *
 DefaultAWSCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
                     CacheLookupHttpConfig *params, time_t pin_in_cache)
 {
-  Debug("cloud_cache_aws", "starting cache read");
+  string keyStr = to_string(cache_hash(key->hash));
 
-  int64_t doc_size; // get from buffer size
+  if (objectInCache(keyStr)) {
+    Clock redisLock;
+    if (!getRedisObjectLock(keyStr, &redisLock)) {
+      // TODO: handle error
+    }
 
-  HttpTunnel tunnel = ((HttpCacheSM *)cont)->master_sm->get_tunnel();
+    ObjectCacheMeta m = getObjectCacheMeta(keyStr);
 
-  HttpTunnelProducer *p = tunnel.add_producer(cache_sm.cache_read_vc, doc_size, buf_start, &HttpSM::tunnel_handler_cache_read,
-                                            HT_CACHE_READ, "cache read");
-  tunnel.add_consumer(ua_entry->vc, cache_sm.cache_read_vc, &HttpSM::tunnel_handler_ua, HT_HTTP_CLIENT, "user agent");
+    if (objectInCloudFront(m)) {
+      // TODO: if accessed very recently, move to local RAM cache
 
-//  Debug("cloud_cache_aws", "num_read_tries %d", num_open_read_tries);
+      // TODO: increment CF life if close to expiration
 
-  string key_hash = to_string(cache_hash(key->hash));
+      // TODO: return CF redirect
+    } else {
+      // TODO: if object accessed last before some threshold, serve from S3
+      if (1/*the above*/) {
+        char *doc;
+        if (doc = getObjectS3(keyStr)) {
+          CacheVC *cacheVC = (CacheVC *((HttpCacheSM *)cont)->cache_read_vc);
+          char *cacheVCBuf = cacheVC->buf;
+          (*cacheVCBuf) = doc;
 
+//        return whatever continuation means that we have finished cache read and we can start returning to the client
+        } else {
+          // Should never happen, just in case
+          //    CACHE_INCREMENT_DYN_STAT(cache_read_failure_stat);
+          cont->handleEvent(CACHE_EVENT_OPEN_READ_FAILED, (void *)-ECACHE_NO_DOC);
+          return ACTION_RESULT_DONE;
+        }
+      } else {
+        // TODO: check if object last accessed very recently
+        if (1 /* above */) {
+          // m.cloudFrontExpiry = SOME_GENERATED_VALUE;
+          // putObjectCacheMeta(keyStr, m);
+        }
 
-  ListObjectsRequest listObjectsRequest;
-  listObjectsRequest.SetBucket(s3bucket_name);
-  ListObjectsOutcome listObjectsOutcome = s3Client->ListObjects(listObjectsRequest);
-  if (listObjectsOutcome.IsSUccess()) {
-    Debug("cloud_cache_aws", "S3 bucket (%s) list objects request success", s3bucket_name);
+        // TODO: return CF redirect
+      }
+    }
+
+    if (!releaseRedisObjectLock(keyStr, &redisLock)) {
+      // TODO: handle error
+    }
   } else {
-    Debug("cloud_cache_aws", "S3 bucket (%s) list objects request failed", s3bucket_name);
-  }
-
-  bool object_found = false;
-  for (const auto &object : listObjectsOutcome.GetResult().GetContents()) {
-    if (object.GetKey() == key_hash) {
-      Debug("cloud_cache_aws", "Found object in ", s3bucket_name);
-      object_found = true;
-      break;
-    }
-  }
-
-  // s3 get object request
-  GetObjectRequest getObjectRequest;
-  getObjectRequest.SetBucket(s3bucket_name);
-  // TODO: get hash string a better way?
-
-  Debug("cloud_cache_aws", "cache read hash key: %u", key_hash);
-  getObjectRequest.SetKey(std::to_string(key_hash));
-  std::stringbuf buf;
-  getObjectRequest.SetResponseStreamFactory(
-    [&buf](){
-      return Aws::New<Aws::IOStream>(AWSCACHE_ALLOCATION_TAG, &buf);
-    }
-  );
-  auto getObjectOutcome = s3Client.GetObject(getObjectRequest);
-  if(getObjectOutcome.IsSuccess()) {
-    Debug("cloud_cache_aws", "S3 bucket (%s) hit and download success for key: %u", s3bucket_name, key_hash);
-//    std::cout << buf.str();
-  } else { // TODO: change to list bucket objects, inspect outcome more to set the event handling properly
-    Debug("cloud_cache_aws", "S3 bucket (%s) cache miss for key: %u", s3bucket_name, key_hash);
-//    CACHE_INCREMENT_DYN_STAT(cache_read_failure_stat);
+    CACHE_INCREMENT_DYN_STAT(cache_read_failure_stat);
     cont->handleEvent(CACHE_EVENT_OPEN_READ_FAILED, (void *)-ECACHE_NO_DOC);
     return ACTION_RESULT_DONE;
   }
-
-  return NULL;
 }
+
 
 Action *
 DefaultAWSCache::open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
-                     CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache)
+                            CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache)
 {
-  Debug("cloud_cache_aws", "starting cache write");
+  string keyStr = to_string(cache_hash(key->hash));
 
-  // s3 put object request
+  // Get pointer to VIO/IOBufferReader thing
+
+  // Pass key and VIO/IOBufferReader thing to putObjectS3
+
+  // Make Object meta object to put in Redis
+  ObjectCacheMeta m;
+  m.size = (size_t) expected_size;
+  m.lastAccessed = getNowTimestamp();
+  m.cloudFrontExpiry = 0;
+  putObjectCacheMeta(keyStr, m);
+
+
+
+
+
+
+
+
+Debug("cloud_cache_aws", "starting cache write");
+
+
+
+
+// s3 put object request
   PutObjectRequest putObjectRequest;
   putObjectRequest.SetBucket(s3bucket_name);
   // TODO: get hash string a better way?
   unsigned int key_hash = cache_hash(key->hash);
   Debug("cloud_cache_aws", "cache write hash key: %u", key_hash);
   putObjectRequest.SetKey(std::to_string(key_hash));
+
   // TODO: transitioning from all on disk, still figuring out how to get data from OS into the buffer and vice versa
+
   std::stringbuf buf;
   std::shared_ptr<Aws::IOStream> writestream = Aws::MakeShared<Aws::IOStream>(AWSCACHE_ALLOCATION_TAG, &buf);
   putObjectRequest.SetBody(writestream);
   putObjectRequest.SetContentLength(static_cast<long>(putObjectRequest.GetBody()->tellp()));
   putObjectRequest.SetContentMD5(HashingUtils::Base64Encode(HashingUtils::CalculateMD5(*putObjectRequest.GetBody())));
   PutObjectOutcome putObjectOutcome = s3Client.PutObject(putObjectRequest);
-  if (putObjectOutcome.IsSuccess()) {
+
+
+if (putObjectOutcome.IsSuccess()) {
     Debug("cloud_cache_aws", "S3 bucket (%s) write succeeded for key: %u", s3bucket_name, key_hash);
   } else { // TODO: inspect outcome more to set event handling properly
     Debug("cloud_cache_aws", "S3 bucket (%s) write failed for key: %u", s3bucket_name, key_hash);
