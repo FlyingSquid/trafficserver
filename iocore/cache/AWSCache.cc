@@ -131,7 +131,33 @@ string DefaultAWSCache::getObjectCloudFrontLocation(string key)
   return cloudFrontDistrBase + key;
 }
 
-getObjectS3(string key, const char *rangeValue = NULL)
+void DefaultAWSCache::setCloudFrontRedirect(HttpSM *httpSM, string url)
+{
+  httpSM->enable_redirection = true;
+  httpSM->redirect_url = url.c_str();
+  httpSM->redirect_url_len = url.length();
+}
+
+bool DefaultAWSCache::putObjectS3(string key, IOBufferReader *buf) {
+  PutObjectRequest putObjectRequest;
+  putObjectRequest.SetBucket(s3BucketName);
+  Debug("cloud_cache_aws", "cache write hash key: %s", key);
+  putObjectRequest.SetKey(key);
+
+  char writeBuf[buf->read_avail()];
+  // TODO: error checking to make sure we actually read the number of bytes we wanted
+  // TODO: make more robust for large objects and multipart upload?
+  buf->read(writeBuf, buf->read_avail());
+  std::shared_ptr<Aws::IOStream> writestream = Aws::MakeShared<Aws::IOStream>(AWSCACHE_ALLOCATION_TAG, &writeBuf);
+  putObjectRequest.SetBody(writestream);
+  putObjectRequest.SetContentLength(static_cast<long>(putObjectRequest.GetBody()->tellp()));
+  putObjectRequest.SetContentMD5(HashingUtils::Base64Encode(HashingUtils::CalculateMD5(*putObjectRequest.GetBody())));
+  PutObjectOutcome putObjectOutcome = s3Client.PutObject(putObjectRequest);
+
+  return putObjectOutcome.IsSuccess();
+}
+
+char *DefaultAWSCache::getObjectS3(string key, const char *rangeValue = NULL)
 {
   GetObjectRequest getObjectRequest;
   getObjectRequest.SetBucket(s3BucketName);
@@ -148,10 +174,8 @@ getObjectS3(string key, const char *rangeValue = NULL)
   );
   auto getObjectOutcome = s3Client.GetObject(getObjectRequest);
   if(getObjectOutcome.IsSuccess()) {
-    Debug("cloud_cache_aws", "S3 bucket (%s) hit and download success for key: %u", s3BucketName, key);
     return buf.str().c_str();
-  } else { // TODO: change to list bucket objects, inspect outcome more to set the event handling properly
-    Debug("cloud_cache_aws", "S3 bucket (%s) cache miss for key: %u", s3BucketName, key);
+  } else {
     return NULL;
   }
 }
@@ -206,7 +230,7 @@ DefaultAWSCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTT
 
       // TODO: increment CF life if close to expiration
 
-      // TODO: return CF redirect
+      setCloudFrontRedirect((HttpSM *) cont, getObjectCloudFrontLocation(keyStr));
     } else {
       // TODO: if object accessed last before some threshold, serve from S3
       if (1/*the above*/) {
@@ -216,7 +240,9 @@ DefaultAWSCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTT
           char *cacheVCBuf = cacheVC->buf;
           (*cacheVCBuf) = doc;
 
-//        return whatever continuation means that we have finished cache read and we can start returning to the client
+          // TODO: may be the wrong action below, also may change for chunked downloads from S3
+
+          return ACTION_RESULT_DONE;
         } else {
           // Should never happen, just in case
           //    CACHE_INCREMENT_DYN_STAT(cache_read_failure_stat);
@@ -230,7 +256,7 @@ DefaultAWSCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTT
           // putObjectCacheMeta(keyStr, m);
         }
 
-        // TODO: return CF redirect
+        setCloudFrontRedirect((HttpSM *) cont, getObjectCloudFrontLocation(keyStr));
       }
     }
 
@@ -251,55 +277,22 @@ DefaultAWSCache::open_write(Continuation *cont, int expected_size, const HttpCac
 {
   string keyStr = to_string(cache_hash(key->hash));
 
-  // Get pointer to VIO/IOBufferReader thing
+  // Get pointer to IOBufferReader with data from origin server
+  IOBufferReader *reader = getHTTPSMIOBufferReader(cont);
 
-  // Pass key and VIO/IOBufferReader thing to putObjectS3
+  if (putObjectS3(keyStr, reader)) {
+    // Make Object meta object to put in Redis
+    ObjectCacheMeta m;
+    m.size = (size_t) expected_size;
+    m.lastAccessed = getNowTimestamp();
+    m.cloudFrontExpiry = 0;
+    putObjectCacheMeta(keyStr, m);
 
-  // Make Object meta object to put in Redis
-  ObjectCacheMeta m;
-  m.size = (size_t) expected_size;
-  m.lastAccessed = getNowTimestamp();
-  m.cloudFrontExpiry = 0;
-  putObjectCacheMeta(keyStr, m);
-
-
-
-
-
-
-
-
-Debug("cloud_cache_aws", "starting cache write");
-
-
-
-
-// s3 put object request
-  PutObjectRequest putObjectRequest;
-  putObjectRequest.SetBucket(s3bucket_name);
-  // TODO: get hash string a better way?
-  unsigned int key_hash = cache_hash(key->hash);
-  Debug("cloud_cache_aws", "cache write hash key: %u", key_hash);
-  putObjectRequest.SetKey(std::to_string(key_hash));
-
-  // TODO: transitioning from all on disk, still figuring out how to get data from OS into the buffer and vice versa
-
-  std::stringbuf buf;
-  std::shared_ptr<Aws::IOStream> writestream = Aws::MakeShared<Aws::IOStream>(AWSCACHE_ALLOCATION_TAG, &buf);
-  putObjectRequest.SetBody(writestream);
-  putObjectRequest.SetContentLength(static_cast<long>(putObjectRequest.GetBody()->tellp()));
-  putObjectRequest.SetContentMD5(HashingUtils::Base64Encode(HashingUtils::CalculateMD5(*putObjectRequest.GetBody())));
-  PutObjectOutcome putObjectOutcome = s3Client.PutObject(putObjectRequest);
-
-
-if (putObjectOutcome.IsSuccess()) {
-    Debug("cloud_cache_aws", "S3 bucket (%s) write succeeded for key: %u", s3bucket_name, key_hash);
-  } else { // TODO: inspect outcome more to set event handling properly
-    Debug("cloud_cache_aws", "S3 bucket (%s) write failed for key: %u", s3bucket_name, key_hash);
-//    CACHE_INCREMENT_DYN_STAT()
+    // TODO: update stats, maybe have different handler etc.
+    return ACTION_RESULT_DONE;
+  } else {
+    // TODO: handle error properly
     cont->handleEvent(CACHE_EVENT_OPEN_WRITE_FAILED, (void *)-ECACHE_NOT_READY);
     return ACTION_RESULT_DONE;
   }
-
-  return NULL;
 }

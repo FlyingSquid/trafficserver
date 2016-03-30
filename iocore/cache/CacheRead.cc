@@ -146,8 +146,7 @@ Cache::open_read(Continuation *cont, const CacheKey *key, CacheHTTPHdr *request,
   }
 Lmiss:
 #ifdef CLOUD_CACHE
-  SET_CONTINUATION_HANDLER(cont, &CloudCache::open_read);
-  return &cont->_action;
+  return theCloudCache->open_read(cont, key, request, params, pin_in_cache);
 #endif
   CACHE_INCREMENT_DYN_STAT(cache_read_failure_stat);
   cont->handleEvent(CACHE_EVENT_OPEN_READ_FAILED, (void *)-ECACHE_NO_DOC);

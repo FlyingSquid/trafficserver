@@ -42,6 +42,8 @@ public:
    */
   const char *read_config(char *cloud_provider);
 
+  bool objectInRAMCache();
+
   /**
    * TODO: document
    */
@@ -57,6 +59,14 @@ public:
   // TODO: find the other cache actions and implement
 //  Action *remove();
 
+
+  IOBufferReader *getHTTPSMIOBufferReader(Continuation *cont)
+  {
+    UnixNetVConnection *netVC = (UnixNetVConnection) ((HttpCacheSM *)cont)->master_sm->get_server_session()->get_netvc();
+    MIOBufferAccessor &buf = &netVC->read->vio.buffer;
+    IOBufferReader *reader = buf->reader();
+    return reader;
+  }
 
 private:
   CloudProvider *cCache;

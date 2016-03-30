@@ -53,7 +53,6 @@ CloudCache::read_config(char *cloud_provider)
   err = cCache->read_config();
 
 Lfail:
-
   return err;
 }
 

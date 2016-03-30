@@ -1773,12 +1773,3 @@ Lcallreturn:
 }
 
 #endif
-
-#ifdef CLOUD_CACHE
-//Action *
-//Cache::open_write(Continuation *cont, const CacheKey *key, CacheHTTPInfo *info, time_t apin_in_cache,
-//                  const CacheKey * /* key1 ATS_UNUSED */, CacheFragType type, const char *hostname, int host_len)
-//{
-//
-//}
-#endif

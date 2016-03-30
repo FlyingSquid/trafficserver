@@ -97,7 +97,9 @@ protected:
   // Get CloudFront resource URL (for redirecting client)
   string getObjectCloudFrontLocation(string key);
 
-//  putObjectS3(string key, buffer/VIO thing/pointer etc.);
+  void setCloudFrontRedirect(HttpSM *httpSM, string url);
+
+  bool putObjectS3(string key, IOBufferReader *buf);
 
   char *getObjectS3(string key, const char *rangeValue);
 
