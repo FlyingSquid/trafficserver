@@ -29,8 +29,8 @@ AM_CPPFLAGS = \
   -I$(top_srcdir)/mgmt \
   -I$(top_srcdir)/mgmt/utils \
   -I/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp/aws-cpp-sdk-core/include \
-  -I/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp/aws-cpp-sdk-s3/include
-  -I/home/sunjay/Documents/FlyingSquid/redlock-cpp/redlock-cpp \
+  -I/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp/aws-cpp-sdk-s3/include \
+  -I/home/sunjay/Documents/FlyingSquid/redlock-cpp
 
 
 ADD_SRC =

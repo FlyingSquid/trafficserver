@@ -38,10 +38,6 @@
 #include "P_CacheBC.h"
 #endif
 
-#ifdef CLOUD_CACHE
-#include "CloudCache.h"
-#endif
-
 #include "ts/hugepages.h"
 
 // Compilation Options
@@ -3317,13 +3313,6 @@ Action *
 CacheProcessor::open_read(Continuation *cont, const HttpCacheKey *key, bool cluster_cache_local, CacheHTTPHdr *request,
                           CacheLookupHttpConfig *params, time_t pin_in_cache, CacheFragType type)
 {
-#ifdef CLOUD_CACHE
-  if (cache_config_cloud_cache_enabled > 0) {
-    Debug("http_flying_squid", "cloud cache read enabled")
-    return theCloudCache.open_read(cont, key, request, params, pin_in_cache);
-  }
-#endif
-
 #ifdef CLUSTER_CACHE
   if (cache_clustering_enabled > 0 && !cluster_cache_local) {
     return open_read_internal(CACHE_OPEN_READ_LONG, cont, (MIOBuffer *)0, key, request, params, pin_in_cache, type);
@@ -3340,8 +3329,7 @@ CacheProcessor::open_write(Continuation *cont, int expected_size, const HttpCach
                            CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache, CacheFragType type)
 {
 #ifdef CLOUD_CACHE
-if (cache_config_cloud_cache_enabled > 0) {
-    Debug("http_flying_squid", "cloud cache write enabled")
+  if (cache_config_cloud_cache_enabled > 0) {
     return theCloudCache.open_write(cont, expected_size, key, request, old_info, pin_in_cache);
   }
 #endif

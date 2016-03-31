@@ -58,9 +58,9 @@ Lfail:
 
 Action *
 CloudCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
-                      CacheLookupHttpConfig *params, time_t pin_in_cache)
+                      CacheLookupHttpConfig *params)
 {
-  return cCache->open_read(cont, key, request, params, pin_in_cache);
+  return cCache->open_read(cont, key, request, params);
 }
 
 Action *
@@ -68,4 +68,14 @@ CloudCache::open_write(Continuation *cont, int expected_size, const HttpCacheKey
                        CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache)
 {
   return cCache->open_write(cont, expected_size, key, request, old_info, pin_in_cache);
+}
+
+
+static IOBufferReader *
+CloudCache::getHTTPSMIOBufferReader(Continuation *cont)
+{
+  UnixNetVConnection *netVC = (UnixNetVConnection) ((HttpCacheSM *)cont)->master_sm->get_server_session()->get_netvc();
+  MIOBufferAccessor &buf = &netVC->read->vio.buffer;
+  IOBufferReader *reader = buf->reader();
+  return reader;
 }

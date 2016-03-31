@@ -48,7 +48,7 @@ public:
    * TODO: document
    */
   Action *open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
-                    CacheLookupHttpConfig *params, time_t pin_in_cache);
+                    CacheLookupHttpConfig *params);
 
   /**
    * TODO: document
@@ -60,13 +60,7 @@ public:
 //  Action *remove();
 
 
-  IOBufferReader *getHTTPSMIOBufferReader(Continuation *cont)
-  {
-    UnixNetVConnection *netVC = (UnixNetVConnection) ((HttpCacheSM *)cont)->master_sm->get_server_session()->get_netvc();
-    MIOBufferAccessor &buf = &netVC->read->vio.buffer;
-    IOBufferReader *reader = buf->reader();
-    return reader;
-  }
+  static IOBufferReader *getHTTPSMIOBufferReader(Continuation *cont);
 
 private:
   CloudProvider *cCache;

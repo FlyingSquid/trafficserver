@@ -213,7 +213,7 @@ Lfail:
 
 Action *
 DefaultAWSCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
-                    CacheLookupHttpConfig *params, time_t pin_in_cache)
+                    CacheLookupHttpConfig *params)
 {
   string keyStr = to_string(cache_hash(key->hash));
 

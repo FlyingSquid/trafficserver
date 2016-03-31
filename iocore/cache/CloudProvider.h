@@ -37,7 +37,7 @@ public:
   // TODO: simply pass an iostream, key, metadata, cleaned up by CloudCache::open_read etc.
 
   virtual Action *open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
-                             CacheLookupHttpConfig *params, time_t pin_in_cache) = 0;
+                             CacheLookupHttpConfig *params) = 0;
 
   virtual Action *open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
                              CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache) = 0;

@@ -26,10 +26,10 @@
 #define __AWS_CACHE_H__
 
 #include <aws/s3/S3Client.h>
+#include <redlock-cpp/redlock.h>
 
 #include "CloudCache.h"
 #include "RedisClient.h"
-#include "redlock.h"
 
 #define PROVIDER_NAME_AWS
 
@@ -52,7 +52,7 @@ public:
   // TODO: this interface will change, will move event/continuation handling to CloudCache::open_write etc.
 
   virtual Action *open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
-                            CacheLookupHttpConfig *params, time_t pin_in_cache);
+                            CacheLookupHttpConfig *params);
 
   virtual Action *open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
                              CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache);

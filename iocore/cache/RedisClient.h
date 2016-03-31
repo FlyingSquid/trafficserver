@@ -1,7 +1,7 @@
 #ifndef REDIS_CLIENT_H
 #define REDIS_CLIENT_H
 
-#include "redis/hiredis.h"
+#include "hiredis/hiredis.h"
 #include <string>
 #include <vector>
 #include <list>

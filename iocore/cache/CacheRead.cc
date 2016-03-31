@@ -30,6 +30,11 @@
 #define READ_WHILE_WRITER 1
 extern int cache_config_compatibility_4_2_0_fixup;
 
+#ifdef CLOUD_CACHE
+extern CloudCache theCloudCache;
+extern int cache_config_cloud_cache_enabled;
+#endif
+
 Action *
 Cache::open_read(Continuation *cont, const CacheKey *key, CacheFragType type, const char *hostname, int host_len)
 {
@@ -146,7 +151,8 @@ Cache::open_read(Continuation *cont, const CacheKey *key, CacheHTTPHdr *request,
   }
 Lmiss:
 #ifdef CLOUD_CACHE
-  return theCloudCache->open_read(cont, key, request, params, pin_in_cache);
+  if (cache_config_cloud_cache_enabled > 0)
+//    return theCloudCache.open_read(cont, key, request, params);
 #endif
   CACHE_INCREMENT_DYN_STAT(cache_read_failure_stat);
   cont->handleEvent(CACHE_EVENT_OPEN_READ_FAILED, (void *)-ECACHE_NO_DOC);

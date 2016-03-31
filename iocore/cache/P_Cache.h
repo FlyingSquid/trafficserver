@@ -43,4 +43,9 @@
 #include "P_CacheInternal.h"
 #include "P_CacheHosting.h"
 #include "P_CacheHttp.h"
+
+#ifdef CLOUD_CACHE
+#include "CloudCache.h"
+#endif
+
 #endif /* _P_CACHE_H */
