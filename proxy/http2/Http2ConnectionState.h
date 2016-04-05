@@ -51,7 +51,7 @@ public:
   void
   settings_from_configs()
   {
-    settings[indexof(HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS)] = Http2::max_concurrent_streams;
+    settings[indexof(HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS)] = Http2::max_concurrent_streams_in;
     settings[indexof(HTTP2_SETTINGS_INITIAL_WINDOW_SIZE)] = Http2::initial_window_size;
     settings[indexof(HTTP2_SETTINGS_MAX_FRAME_SIZE)] = Http2::max_frame_size;
     settings[indexof(HTTP2_SETTINGS_HEADER_TABLE_SIZE)] = Http2::header_table_size;
@@ -112,8 +112,8 @@ public:
   }
 
   Http2ClientSession *ua_session;
-  Http2IndexingTable *local_indexing_table;
-  Http2IndexingTable *remote_indexing_table;
+  HpackHandle *local_hpack_handle;
+  HpackHandle *remote_hpack_handle;
 
   // Settings.
   Http2ConnectionSettings server_settings;
@@ -122,8 +122,8 @@ public:
   void
   init()
   {
-    local_indexing_table = new Http2IndexingTable();
-    remote_indexing_table = new Http2IndexingTable();
+    local_hpack_handle = new HpackHandle(HTTP2_HEADER_TABLE_SIZE);
+    remote_hpack_handle = new HpackHandle(HTTP2_HEADER_TABLE_SIZE);
 
     continued_buffer.iov_base = NULL;
     continued_buffer.iov_len = 0;
@@ -135,8 +135,8 @@ public:
     cleanup_streams();
 
     mutex = NULL; // magic happens - assigning to NULL frees the ProxyMutex
-    delete local_indexing_table;
-    delete remote_indexing_table;
+    delete local_hpack_handle;
+    delete remote_hpack_handle;
 
     ats_free(continued_buffer.iov_base);
   }
@@ -198,6 +198,8 @@ public:
 private:
   Http2ConnectionState(const Http2ConnectionState &);            // noncopyable
   Http2ConnectionState &operator=(const Http2ConnectionState &); // noncopyable
+
+  unsigned _adjust_concurrent_stream();
 
   // NOTE: 'stream_list' has only active streams.
   //   If given Stream Identifier is not found in stream_list and it is less

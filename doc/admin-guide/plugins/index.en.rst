@@ -104,6 +104,7 @@ directory of the |TS| source tree. Experimental plugins can be compiled by passi
    Cache Promote <cache_promote.en>
    Combo Handler <combo_handler.en>
    Epic <epic.en>
+   Escalate <escalate.en>
    ESI <esi.en>
    Generator <generator.en>
    GeoIP ACL <geoip_acl.en>
@@ -117,7 +118,7 @@ directory of the |TS| source tree. Experimental plugins can be compiled by passi
    Stale While Revalidate <stale_while_revalidate.en>
    TS Lua <ts_lua.en>
    WebP Transform <webp_transform.en>
-   X-Debug <xdebug.en>
+   XDebug <xdebug.en>
    Collapsed-Forwarding <collapsed_forwarding.en>
 
 :doc:`AuthProxy <authproxy.en>`
@@ -145,7 +146,10 @@ directory of the |TS| source tree. Experimental plugins can be compiled by passi
    Provides an intelligent way to combine multiple URLs into a single URL, and have Apache Traffic Server combine the components into one response.
 
 :doc:`Epic <epic.en>`
-   Emits Traffic Server metrics in a format that is consumed tby the Epic Network Monitoring System.
+   Emits Traffic Server metrics in a format that is consumed by the Epic Network Monitoring System.
+
+:doc:`Escalate <escalate.en>`
+   Escalate: when the origin returns specific status codes, retry the request at a secondary origin (failover/fail-action)
 
 :doc:`ESI <esi.en>`
    Implements the Edge Side Includes (ESI) specification.
@@ -186,7 +190,7 @@ directory of the |TS| source tree. Experimental plugins can be compiled by passi
 :doc:`WebP Transform <webp_transform.en>`
    Converts jpeg and png images to webp format.
 
-:doc:`X-Debug <xdebug.en>`
+:doc:`XDebug <xdebug.en>`
    Allows HTTP clients to debug the operation of the Traffic Server cache using the X-Debug header.
 
 :doc:`Collapsed-Forwarding <collapsed_forwarding.en>`

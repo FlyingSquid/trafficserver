@@ -277,12 +277,14 @@ rcv_headers_frame(Http2ConnectionState &cstate, const Http2Frame &frame)
       skip_fetcher = true;
     }
 
-    const int64_t decoded_bytes = stream->decode_header_blocks(*cstate.local_indexing_table);
+    Http2ErrorCode result = stream->decode_header_blocks(*cstate.local_hpack_handle);
 
-    if (decoded_bytes == 0 || decoded_bytes == HPACK_ERROR_COMPRESSION_ERROR) {
-      return Http2Error(HTTP2_ERROR_CLASS_CONNECTION, HTTP2_ERROR_COMPRESSION_ERROR);
-    } else if (decoded_bytes == HPACK_ERROR_HTTP2_PROTOCOL_ERROR) {
-      return Http2Error(HTTP2_ERROR_CLASS_STREAM, HTTP2_ERROR_PROTOCOL_ERROR);
+    if (result != HTTP2_ERROR_NO_ERROR) {
+      if (result == HTTP2_ERROR_COMPRESSION_ERROR) {
+        return Http2Error(HTTP2_ERROR_CLASS_CONNECTION, HTTP2_ERROR_COMPRESSION_ERROR);
+      } else {
+        return Http2Error(HTTP2_ERROR_CLASS_STREAM, HTTP2_ERROR_PROTOCOL_ERROR);
+      }
     }
 
     if (!skip_fetcher) {
@@ -678,12 +680,14 @@ rcv_continuation_frame(Http2ConnectionState &cstate, const Http2Frame &frame)
       return Http2Error(HTTP2_ERROR_CLASS_CONNECTION, HTTP2_ERROR_PROTOCOL_ERROR);
     }
 
-    const int64_t decoded_bytes = stream->decode_header_blocks(*cstate.local_indexing_table);
+    Http2ErrorCode result = stream->decode_header_blocks(*cstate.local_hpack_handle);
 
-    if (decoded_bytes == 0 || decoded_bytes == HPACK_ERROR_COMPRESSION_ERROR) {
-      return Http2Error(HTTP2_ERROR_CLASS_CONNECTION, HTTP2_ERROR_COMPRESSION_ERROR);
-    } else if (decoded_bytes == HPACK_ERROR_HTTP2_PROTOCOL_ERROR) {
-      return Http2Error(HTTP2_ERROR_CLASS_CONNECTION, HTTP2_ERROR_PROTOCOL_ERROR);
+    if (result != HTTP2_ERROR_NO_ERROR) {
+      if (result == HTTP2_ERROR_COMPRESSION_ERROR) {
+        return Http2Error(HTTP2_ERROR_CLASS_CONNECTION, HTTP2_ERROR_COMPRESSION_ERROR);
+      } else {
+        return Http2Error(HTTP2_ERROR_CLASS_STREAM, HTTP2_ERROR_PROTOCOL_ERROR);
+      }
     }
 
     stream->init_fetcher(cstate);
@@ -727,6 +731,8 @@ Http2ConnectionState::main_event_handler(int event, void *edata)
     // settings.
     Http2ConnectionSettings configured_settings;
     configured_settings.settings_from_configs();
+    configured_settings.set(HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, _adjust_concurrent_stream());
+
     send_settings_frame(configured_settings);
 
     if (server_settings.get(HTTP2_SETTINGS_INITIAL_WINDOW_SIZE) > HTTP2_INITIAL_WINDOW_SIZE) {
@@ -989,9 +995,11 @@ Http2ConnectionState::send_data_frame(FetchSM *fetch_sm)
 void
 Http2ConnectionState::send_headers_frame(FetchSM *fetch_sm)
 {
-  const size_t buf_len = BUFFER_SIZE_FOR_INDEX(buffer_size_index[HTTP2_FRAME_TYPE_HEADERS]) - HTTP2_FRAME_HEADER_LEN;
-  uint8_t payload_buffer[buf_len];
-  size_t payload_length = 0;
+  uint8_t *buf = NULL;
+  uint32_t buf_len = 0;
+  uint32_t header_blocks_size = 0;
+  int payload_length = 0;
+  uint64_t sent = 0;
   uint8_t flags = 0x00;
 
   Http2Stream *stream = static_cast<Http2Stream *>(fetch_sm->ext_get_user_data());
@@ -999,43 +1007,57 @@ Http2ConnectionState::send_headers_frame(FetchSM *fetch_sm)
 
   DebugHttp2Stream(ua_session, stream->get_id(), "Send HEADERS frame");
 
-  // Write pseudo headers
-  payload_length += http2_write_psuedo_headers(resp_header, payload_buffer, buf_len, *(this->remote_indexing_table));
-
-  // If response body is empty, set END_STREAM flag to HEADERS frame
-  // Must check to ensure content-length is there.  Otherwise the value defaults
-  // to 0
-  if (resp_header->presence(MIME_PRESENCE_CONTENT_LENGTH) && resp_header->get_content_length() == 0) {
-    flags |= HTTP2_FLAGS_HEADERS_END_STREAM;
+  http2_convert_header_from_1_1_to_2(resp_header);
+  buf_len = resp_header->length_get() * 2; // Make it double just in case
+  buf = (uint8_t *)ats_malloc(buf_len);
+  if (buf == NULL) {
+    return;
+  }
+  Http2ErrorCode result = http2_encode_header_blocks(resp_header, buf, buf_len, &header_blocks_size, *(this->remote_hpack_handle));
+  if (result != HTTP2_ERROR_NO_ERROR) {
+    ats_free(buf);
+    return;
   }
 
-  MIMEFieldIter field_iter;
-  bool cont = false;
-  do {
-    // Handle first sending frame is as HEADERS
-    Http2FrameType type = cont ? HTTP2_FRAME_TYPE_CONTINUATION : HTTP2_FRAME_TYPE_HEADERS;
-
-    // Encode by HPACK naive
-    payload_length += http2_write_header_fragment(resp_header, field_iter, payload_buffer + payload_length,
-                                                  buf_len - payload_length, *(this->remote_indexing_table), cont);
-
-    // If buffer size is enough to send rest of headers, set END_HEADERS flag
-    if (buf_len >= payload_length && !cont) {
-      flags |= HTTP2_FLAGS_HEADERS_END_HEADERS;
+  // Send a HEADERS frame
+  if (header_blocks_size <= BUFFER_SIZE_FOR_INDEX(buffer_size_index[HTTP2_FRAME_TYPE_HEADERS]) - HTTP2_FRAME_HEADER_LEN) {
+    payload_length = header_blocks_size;
+    flags |= HTTP2_FLAGS_HEADERS_END_HEADERS;
+    if (resp_header->presence(MIME_PRESENCE_CONTENT_LENGTH) && resp_header->get_content_length() == 0) {
+      flags |= HTTP2_FLAGS_HEADERS_END_STREAM;
     }
+  } else {
+    payload_length = BUFFER_SIZE_FOR_INDEX(buffer_size_index[HTTP2_FRAME_TYPE_HEADERS]) - HTTP2_FRAME_HEADER_LEN;
+  }
+  Http2Frame headers(HTTP2_FRAME_TYPE_HEADERS, stream->get_id(), flags);
+  headers.alloc(buffer_size_index[HTTP2_FRAME_TYPE_HEADERS]);
+  http2_write_headers(buf, payload_length, headers.write());
+  headers.finalize(payload_length);
+  // xmit event
+  SCOPED_MUTEX_LOCK(lock, this->ua_session->mutex, this_ethread());
+  this->ua_session->handleEvent(HTTP2_SESSION_EVENT_XMIT, &headers);
+  sent += payload_length;
 
-    // Create HEADERS or CONTINUATION frame
-    Http2Frame headers(type, stream->get_id(), flags);
-    headers.alloc(buffer_size_index[type]);
-    http2_write_headers(payload_buffer, payload_length, headers.write());
+  // Send CONTINUATION frames
+  flags = 0;
+  while (sent < header_blocks_size) {
+    DebugHttp2Stream(ua_session, stream->get_id(), "Send CONTINUATION frame");
+    payload_length = MIN(BUFFER_SIZE_FOR_INDEX(buffer_size_index[HTTP2_FRAME_TYPE_CONTINUATION]) - HTTP2_FRAME_HEADER_LEN,
+                         header_blocks_size - sent);
+    if (sent + payload_length == header_blocks_size) {
+      flags |= HTTP2_FLAGS_CONTINUATION_END_HEADERS;
+    }
+    Http2Frame headers(HTTP2_FRAME_TYPE_CONTINUATION, stream->get_id(), flags);
+    headers.alloc(buffer_size_index[HTTP2_FRAME_TYPE_CONTINUATION]);
+    http2_write_headers(buf + sent, payload_length, headers.write());
     headers.finalize(payload_length);
-
     // xmit event
     SCOPED_MUTEX_LOCK(lock, this->ua_session->mutex, this_ethread());
     this->ua_session->handleEvent(HTTP2_SESSION_EVENT_XMIT, &headers);
+    sent += payload_length;
+  }
 
-    payload_length = 0; // we will reuse the same buffer for more headers
-  } while (cont);
+  ats_free(buf);
 }
 
 void
@@ -1166,4 +1188,37 @@ Http2ConnectionState::send_window_update_frame(Http2StreamId id, uint32_t size)
   // xmit event
   SCOPED_MUTEX_LOCK(lock, this->ua_session->mutex, this_ethread());
   this->ua_session->handleEvent(HTTP2_SESSION_EVENT_XMIT, &window_update);
+}
+
+// Return min_concurrent_streams_in when current client streams number is larger than max_active_streams_in.
+// Main purpose of this is preventing DDoS Attacks.
+unsigned
+Http2ConnectionState::_adjust_concurrent_stream()
+{
+  if (Http2::max_active_streams_in == 0) {
+    // Throttling down is disabled.
+    return Http2::max_concurrent_streams_in;
+  }
+
+  int64_t current_client_streams = 0;
+  RecGetRawStatSum(http2_rsb, HTTP2_STAT_CURRENT_CLIENT_STREAM_COUNT, &current_client_streams);
+
+  DebugHttp2Con(ua_session, "current client streams: %" PRId64, current_client_streams);
+
+  if (current_client_streams >= Http2::max_active_streams_in) {
+    if (!Http2::throttling) {
+      Warning("too many streams: %" PRId64 ", reduce SETTINGS_MAX_CONCURRENT_STREAMS to %d", current_client_streams,
+              Http2::min_concurrent_streams_in);
+      Http2::throttling = true;
+    }
+
+    return Http2::min_concurrent_streams_in;
+  } else {
+    if (Http2::throttling) {
+      Note("revert SETTINGS_MAX_CONCURRENT_STREAMS to %d", Http2::max_concurrent_streams_in);
+      Http2::throttling = false;
+    }
+  }
+
+  return Http2::max_concurrent_streams_in;
 }

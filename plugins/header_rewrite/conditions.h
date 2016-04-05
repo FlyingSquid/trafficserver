@@ -220,6 +220,7 @@ private:
   };
 };
 
+
 // header
 class ConditionHeader : public Condition
 {
@@ -240,6 +241,7 @@ private:
 
   bool _client;
 };
+
 
 // path
 class ConditionPath : public Condition
@@ -374,6 +376,7 @@ private:
   DISALLOW_COPY_AND_ASSIGN(ConditionIncomingPort);
 };
 
+
 // Transact Count
 class ConditionTransactCount : public Condition
 {
@@ -392,6 +395,7 @@ private:
   DISALLOW_COPY_AND_ASSIGN(ConditionTransactCount);
 };
 
+
 // now: Keeping track of current time / day / hour etc.
 class ConditionNow : public Condition
 {
@@ -406,8 +410,48 @@ protected:
   bool eval(const Resources &res);
 
 private:
+  int64_t get_now_qualified(NowQualifiers qual) const;
+
   DISALLOW_COPY_AND_ASSIGN(ConditionNow);
   NowQualifiers _now_qual;
+};
+
+// GeoIP class for the "integer" based Geo information pieces
+class ConditionGeo : public Condition
+{
+public:
+  explicit ConditionGeo() : _geo_qual(GEO_QUAL_COUNTRY), _int_type(false)
+  {
+    TSDebug(PLUGIN_NAME_DBG, "Calling CTOR for ConditionGeo");
+  };
+
+  void initialize(Parser &p);
+  void set_qualifier(const std::string &q);
+  void append_value(std::string &s, const Resources &res);
+
+  // These are special for this sub-class
+  bool
+  is_int_type() const
+  {
+    return _int_type;
+  }
+  void
+  is_int_type(bool flag)
+  {
+    _int_type = flag;
+  }
+
+protected:
+  bool eval(const Resources &res);
+
+private:
+  int64_t get_geo_int(const sockaddr *addr) const;
+  const char *get_geo_string(const sockaddr *addr) const;
+
+  DISALLOW_COPY_AND_ASSIGN(ConditionGeo);
+
+  GeoQualifiers _geo_qual;
+  bool _int_type;
 };
 
 

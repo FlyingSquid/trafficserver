@@ -1154,7 +1154,7 @@ TS_CHECK_CRYPTO_EC_KEYS
 # Check for ServerNameIndication TLS extension support.
 TS_CHECK_CRYPTO_SNI
 
-# 
+#
 # Check for the presense of the certificate callback in the ssl library
 TS_CHECK_CRYPTO_CERT_CB
 
@@ -1254,28 +1254,62 @@ AS_IF([test "$host_os_def" = "linux"], [
 ])
 TS_ARG_ENABLE_VAR([use], [remote_unwinding])
 
+# Find the appropriate event handling interface. This can be forced on
+# platforms that support 2 or more of our supported interfaces. It
+# could also (in the future?) be used to enable other event systems
+# such as libev.
+AC_ARG_WITH([event-interface],
+  [AS_HELP_STRING([--with-event-interface=epoll|kqueue|port],[event interface to use [default=auto]])],
+  [event_interface=$withval],
+  [event_interface="auto"]
+)
+
 use_epoll=0
 use_kqueue=0
 use_port=0
-if test "$ac_cv_func_epoll_ctl" = "yes"; then
-  use_epoll=1
-  have_good_poller=1
-  AC_MSG_NOTICE([Using epoll event interface])
-elif test "$ac_cv_func_kqueue" = "yes"; then
-  use_kqueue=1
-  have_good_poller=1
-  AC_MSG_NOTICE([Using kqueue event interface])
-elif test "$ac_cv_func_port_create" = "yes"; then
-  use_port=1
-  have_good_poller=1
-  AC_MSG_NOTICE([Using port event interface])
-else
-  AC_MSG_FAILURE([No suitable polling interface found])
-fi
+
+AS_IF([test "x$event_interface" = "xauto"], [
+  if test "$ac_cv_func_port_create" = "yes"; then
+    use_port=1
+    have_good_poller=1
+    AC_MSG_NOTICE([Using port event interface])
+  elif test "$ac_cv_func_epoll_ctl" = "yes"; then
+    use_epoll=1
+    have_good_poller=1
+    AC_MSG_NOTICE([Using epoll event interface])
+  elif test "$ac_cv_func_kqueue" = "yes"; then
+    use_kqueue=1
+    have_good_poller=1
+    AC_MSG_NOTICE([Using kqueue event interface])
+  else
+    AC_MSG_FAILURE([No suitable polling interface found])
+  fi
+],[
+  case "x$event_interface" in
+    xepoll)
+      use_epoll=1
+      AC_MSG_RESULT([forced to epoll])
+      ;;
+    xport)
+      use_port=1
+      AC_MSG_RESULT([forced to port])
+      ;;
+    xkqueue)
+      use_kqueue=1
+      AC_MSG_RESULT([forced to port])
+      ;;
+    *)
+      AC_MSG_RESULT([failed])
+      AC_MSG_FAILURE([unknown event system])
+  esac
+])
+
 AC_SUBST(use_epoll)
 AC_SUBST(use_kqueue)
 AC_SUBST(use_port)
 
+
+# Profiler support
 has_profiler=0
 if test "x${with_profiler}" = "xyes"; then
   AC_SEARCH_LIBS([ProfilerStart], [profiler],
@@ -1421,14 +1455,14 @@ AC_SUBST(use_hwloc)
 # GeoIP as a "helper" plugin, which other plugins can then use. Such a plugin could
 # then manage which libraries to use via explicit dlopen()'s.
 #
-enable_maxmind_geoip=no
-TS_SEARCH_LIBRARY([GeoIP_id_by_code], [GeoIP], [
-  GEOIP_LIBS=$ts_cv_search_GeoIP_id_by_code
-  AC_CHECK_HEADERS([GeoIP.h], [ enable_maxmind_geoip=yes ])
+AC_CHECK_HEADERS([GeoIP.h], [
+  AC_CHECK_LIB([GeoIP], [GeoIP_new], [
+    AC_SUBST([GEO_LIBS], ["-lGeoIP"])
+  ], [
+    AC_SUBST([GEO_LIBS], [""])
+  ])
 ])
 
-AC_SUBST(GEOIP_LIBS)
-AM_CONDITIONAL([BUILD_GEOIP_PLUGIN], [ test "x${enable_maxmind_geoip}" = x"yes" ])
 
 # Right now, the healthcheck plugins requires inotify_init (and friends)
 AM_CONDITIONAL([BUILD_HEALTHCHECK_PLUGIN], [ test "$ac_cv_func_inotify_init" = "yes" ])

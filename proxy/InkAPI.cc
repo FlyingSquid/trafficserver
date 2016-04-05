@@ -43,12 +43,10 @@
 #include "P_HostDB.h"
 #include "P_Cache.h"
 #include "I_RecCore.h"
-#include "I_RecSignals.h"
 #include "ProxyConfig.h"
 #include "Plugin.h"
 #include "LogObject.h"
 #include "LogConfig.h"
-//#include "UserNameCache.h"
 #include "PluginVC.h"
 #include "api/ts/experimental.h"
 #include "ICP.h"
@@ -86,13 +84,10 @@
 static volatile int api_rsb_index = 0;
 static RecRawStatBlock *api_rsb;
 
-// Library init functions needed for API.
-extern void ts_session_protocol_well_known_name_indices_init();
-
 // Globals for the Sessions/Transaction index registry
 static volatile int next_argv_index = 0;
 
-struct _STATE_ARG_TABLE {
+static struct _STATE_ARG_TABLE {
   char *name;
   size_t name_len;
   char *description;
@@ -6835,13 +6830,13 @@ ink_sanity_check_stat_structure(void *obj)
 int
 TSIsDebugTagSet(const char *t)
 {
-  return (diags->on(t, DiagsTagType_Debug)) ? 1 : 0;
+  return is_debug_tag_set(t);
 }
 
 void
 TSDebugSpecific(int debug_flag, const char *tag, const char *format_str, ...)
 {
-  if (diags->on(tag, DiagsTagType_Debug) || (debug_flag && diags->on())) {
+  if (is_debug_tag_set(tag) || (debug_flag && diags->on())) {
     va_list ap;
 
     va_start(ap, format_str);
@@ -6855,7 +6850,7 @@ TSDebugSpecific(int debug_flag, const char *tag, const char *format_str, ...)
 void
 TSDebug(const char *tag, const char *format_str, ...)
 {
-  if (diags->on(tag, DiagsTagType_Debug)) {
+  if (is_debug_tag_set(tag)) {
     va_list ap;
 
     va_start(ap, format_str);
@@ -7979,6 +7974,10 @@ _conf_to_memberp(TSOverridableConfigKey conf, OverridableHttpConfigParams *overr
     typ = OVERRIDABLE_TYPE_INT;
     ret = &overridableHttpConfig->redirect_use_orig_cache_key;
     break;
+  case TS_CONFIG_HTTP_ATTACH_SERVER_SESSION_TO_CLIENT:
+    typ = OVERRIDABLE_TYPE_INT;
+    ret = &overridableHttpConfig->attach_server_session_to_client;
+    break;
   // This helps avoiding compiler warnings, yet detect unhandled enum members.
   case TS_CONFIG_NULL:
   case TS_CONFIG_LAST_ENTRY:
@@ -8560,6 +8559,11 @@ TSHttpTxnConfigFind(const char *name, int length, TSOverridableConfigKey *conf, 
       }
       break;
     }
+    break;
+
+  case 49:
+    if (!strncmp(name, "proxy.config.http.attach_server_session_to_client", length))
+      cnf = TS_CONFIG_HTTP_ATTACH_SERVER_SESSION_TO_CLIENT;
     break;
 
   case 50:
