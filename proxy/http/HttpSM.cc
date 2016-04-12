@@ -67,6 +67,10 @@
 
 extern int cache_config_read_while_writer;
 
+#ifdef CLOUD_CACHE
+extern CloudCache theCloudCache;
+#endif
+
 // We have a debugging list that can use to find stuck
 //  state machines
 DLL<HttpSM> debug_sm_list;
@@ -5838,14 +5842,13 @@ HttpSM::setup_server_read_response_header()
 HttpTunnelProducer *
 HttpSM::setup_cache_read_transfer()
 {
-  Debug("cloud_cache_aws", "***********************");
   int64_t alloc_index, hdr_size;
   int64_t doc_size;
 
   ink_assert(cache_sm.cache_read_vc != NULL);
 
 #ifdef CLOUD_CACHE
-  doc_size = CloudCache::get_object_size(t_state.cloud_cache_info);
+  doc_size = theCloudCache.getObjectSize(t_state.cloud_cache_info);
 #else
   doc_size = t_state.cache_info.object_read->object_size_get();
 #endif
@@ -5864,8 +5867,8 @@ HttpSM::setup_cache_read_transfer()
 
   // Now dump the header into the buffer
 #ifdef CLOUD_CACHE
-  char *hdr = CloudCache::get_response_header(t_state.cloud_cache_info);
-  client_response_hdr_bytes = hdr_size = strlen(hdr);
+  char *hdr = theCloudCache.getResponseHeader(t_state.cloud_cache_info, &hdr_size);
+  client_response_hdr_bytes = hdr_size;
   buf->write(hdr, hdr_size);
 #else
   ink_assert(t_state.hdr_info.client_response.status_get() != HTTP_STATUS_NOT_MODIFIED);

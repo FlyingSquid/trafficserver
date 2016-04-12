@@ -26,17 +26,21 @@
 #define __AWS_CACHE_H__
 
 #include <aws/s3/S3Client.h>
-#include <redlock-cpp/redlock.h>
 
+#include "HttpServerSession.h"
+#include "HttpSM.h"
 #include "CloudCache.h"
+#include "redlock.h"
 #include "RedisClient.h"
 
-#define PROVIDER_NAME_AWS
+#define PROVIDER_NAME_AWS "AWS"
 
 // Redis lock manager constants
 #define REDLOCK_MAX_NUM_RETRIES 10
 #define REDLOCK_RETRY_DELAY_MS 200
 #define REDLOCK_TTL 1000
+
+#define AWS_REDIS_STORE_MAX_HEADER_SIZE 8000
 
 #define AWS_CF_URL_FORMAT "http://%s/"
 
@@ -44,6 +48,16 @@
 class DefaultAWSCache : public CloudCacheProviderImpl
 {
 public:
+#pragma pack(1)
+  struct ObjectCacheMeta {
+    int64_t size; // Object size in bytes
+    int64_t headerLength;
+    char responseHeader[AWS_REDIS_STORE_MAX_HEADER_SIZE];
+    long lastAccessed;
+    long cloudFrontExpiry;
+  };
+#pragma pack(0)
+
   DefaultAWSCache();
   ~DefaultAWSCache();
 
@@ -57,23 +71,19 @@ public:
   virtual Action *open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
                              CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache);
 
-protected:
-#pragma pack(1)
-  struct ObjectCacheMeta {
-    int64_t size; // Object size in bytes
-    // TODO: add response headers
-    long lastAccessed;
-    long cloudFrontExpiry;
-  };
-#pragma pack(0)
+  virtual string getProviderName()
+  {
+    return PROVIDER_NAME_AWS;
+  }
 
+private:
   // Lock manager used to get and release locks on Redis resources
   // Locks are required in order to prevent multiple requests modifying metadata/moving objects in the cache
   CRedLock *redisLockManager;
   CRedisClient redisClient;
 
-  string s3BucketName;
   string cloudFrontDistrBase;
+  string s3BucketName;
   Aws::S3::S3Client s3Client;
 
   // Try to obtain the Redis lock for an object and return success or failure
@@ -81,12 +91,12 @@ protected:
   bool getRedisObjectLock(string key, CLock &lock);
 
   // Release Redis lock for an object, return success or failure (always returns true for now)
-  bool releaseRedisObjectLock(string key, Clock &lock);
+  bool releaseRedisObjectLock(string key, CLock &lock);
 
   // Check if object in distributed cache by checking Redis cluster for existence of object metadata
   bool objectInCache(string key);
 
-  ObjectCacheMeta getObjectCacheMeta(string key);
+  ObjectCacheMeta *getObjectCacheMeta(string key);
 
   // Check if object's CloudFront expiry is in the future
   bool objectInCloudFront(ObjectCacheMeta m);
@@ -101,7 +111,7 @@ protected:
 
   bool putObjectS3(string key, IOBufferReader *buf);
 
-  char *getObjectS3(string key, const char *rangeValue);
+  char *getObjectS3(string key, long *sizeofObject, const char *rangeValue);
 
 //  moveObjectToRAM(string key);
 

@@ -29,6 +29,11 @@
 #define UINT_WRAP_GTE(_x, _y) (((_x) - (_y)) < INT_MAX) // exploit overflow
 #define UINT_WRAP_LT(_x, _y) (((_x) - (_y)) >= INT_MAX) // exploit overflow
 
+#ifdef CLOUD_CACHE
+extern CloudCache theCloudCache;
+extern int cache_config_cloud_cache_enabled;
+#endif
+
 // Given a key, finds the index of the alternate which matches
 // used to get the alternate which is actually present in the document
 #ifdef HTTP_CACHE
@@ -1335,6 +1340,15 @@ target_fragment_size()
 int
 CacheVC::openWriteMain(int /* event ATS_UNUSED */, Event * /* e ATS_UNUSED */)
 {
+  Debug("FLYING_SQUID", "num bytes avail: %ld", vio.buffer.reader()->read_avail());
+#ifdef CLOUD_CACHE
+  if (cache_config_cloud_cache_enabled > 0) {
+   Debug("FLYING_SQUID", "about to call CloudCache::open_write");
+//    theCloudCache.open_write(cont, 1000/*expected_size*/, (const HttpCacheKey *) key, NULL/*request*/, NULL/*old_info*/, NULL/*pin_in_cache*/);
+    return EVENT_DONE;
+  }
+#endif
+
   cancel_trigger();
   int called_user = 0;
   ink_assert(!is_io_in_progress());
@@ -1644,7 +1658,9 @@ Action *
 Cache::open_write(Continuation *cont, const CacheKey *key, CacheHTTPInfo *info, time_t apin_in_cache,
                   const CacheKey * /* key1 ATS_UNUSED */, CacheFragType type, const char *hostname, int host_len)
 {
+Debug("FLYING_SQUID", "here");
   if (!CacheProcessor::IsCacheReady(type)) {
+  Debug("FLYING_SQUID", "here cache not ready for write");
     cont->handleEvent(CACHE_EVENT_OPEN_WRITE_FAILED, (void *)-ECACHE_NOT_READY);
     return ACTION_RESULT_DONE;
   }
@@ -1672,6 +1688,7 @@ Cache::open_write(Continuation *cont, const CacheKey *key, CacheHTTPInfo *info, 
   Vol *vol = c->vol;
   c->info = info;
   if (c->info && (uintptr_t)info != CACHE_ALLOW_MULTIPLE_WRITES) {
+  Debug("FLYING_SQUID", "here 2");
     /*
        Update has the following code paths :
        a) Update alternate header only :
@@ -1708,6 +1725,7 @@ Cache::open_write(Continuation *cont, const CacheKey *key, CacheHTTPInfo *info, 
     ink_assert(!(c->update_key == zero_key));
     c->update_len = info->object_size_get();
   } else
+  Debug("FLYING_SQUID", "here 3");
     c->base_stat = cache_write_active_stat;
   CACHE_INCREMENT_DYN_STAT(c->base_stat + CACHE_STAT_ACTIVE);
   c->pin_in_cache = (uint32_t)apin_in_cache;
@@ -1730,6 +1748,7 @@ Cache::open_write(Continuation *cont, const CacheKey *key, CacheHTTPInfo *info, 
           goto Lfailure;
         }
         // document doesn't exist, begin write
+        Debug("FLYING_SQUID", "here: document doesn't exist, begin write");
         goto Lmiss;
       } else {
         c->od->reading_vec = 1;
@@ -1757,6 +1776,7 @@ Lmiss:
   return ACTION_RESULT_DONE;
 
 Lfailure:
+Debug("FLYING_SQUID", "here Lfailure");
   CACHE_INCREMENT_DYN_STAT(c->base_stat + CACHE_STAT_FAILURE);
   cont->handleEvent(CACHE_EVENT_OPEN_WRITE_FAILED, (void *)-err);
   if (c->od) {
@@ -1767,6 +1787,7 @@ Lfailure:
   return ACTION_RESULT_DONE;
 
 Lcallreturn:
+Debug("FLYING_SQUID", "here Lcallreturn");
   if (c->handleEvent(AIO_EVENT_DONE, 0) == EVENT_DONE)
     return ACTION_RESULT_DONE;
   return &c->_action;

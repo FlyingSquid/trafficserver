@@ -1,4 +1,4 @@
-#include "RedisClient.hpp"
+#include "RedisClient.h"
 
 #define BIND_INT(val) std::bind(&FetchInteger, std::placeholders::_1, val)
 #define BIND_STR(val) std::bind(&FetchString, std::placeholders::_1, val)

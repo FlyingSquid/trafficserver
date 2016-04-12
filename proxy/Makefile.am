@@ -238,8 +238,9 @@ traffic_server_LDADD = \
   @SPDYLAY_LIBS@ \
   @OPENSSL_LIBS@ \
   -lm \
-  -L/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp-build/aws-cpp-sdk-core -laws-cpp-sdk-core \
-  -L/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp-build/aws-cpp-sdk-s3 -laws-cpp-sdk-s3 \
+  -L/home/sunjay/Documents/FlyingSquid/build-aws-sdk-cpp/aws-cpp-sdk-core -laws-cpp-sdk-core \
+  -L/home/sunjay/Documents/FlyingSquid/build-aws-sdk-cpp/aws-cpp-sdk-s3 -laws-cpp-sdk-s3 \
+  -lhiredis \
   /usr/lib/x86_64-linux-gnu/libcurl.a -lidn -lrtmp -lssl -lcrypto -lssl -lcrypto -lgssapi_krb5 -lkrb5 -lk5crypto -lcom_err -llber -llber -lldap -lz
 
 if BUILD_LUAJIT
@@ -339,8 +340,9 @@ traffic_sac_LDADD = \
   @SPDYLAY_LIBS@ \
   @OPENSSL_LIBS@ \
   -lm \
-  -L/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp-build/aws-cpp-sdk-core -laws-cpp-sdk-core \
-  -L/home/sunjay/Documents/FlyingSquid/aws-sdk-cpp-build/aws-cpp-sdk-s3 -laws-cpp-sdk-s3 \
+  -L/home/sunjay/Documents/FlyingSquid/build-aws-sdk-cpp/aws-cpp-sdk-core -laws-cpp-sdk-core \
+  -L/home/sunjay/Documents/FlyingSquid/build-aws-sdk-cpp/aws-cpp-sdk-s3 -laws-cpp-sdk-s3 \
+  -lhiredis \
   /usr/lib/x86_64-linux-gnu/libcurl.a -lidn -lrtmp -lssl -lcrypto -lssl -lcrypto -lgssapi_krb5 -lkrb5 -lk5crypto -lcom_err -llber -llber -lldap -lz
 
 if BUILD_TESTS

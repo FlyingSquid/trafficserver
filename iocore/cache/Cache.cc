@@ -3300,7 +3300,6 @@ ink_cache_init(ModuleVersion v)
       printf("Failed to read cloud cache storage configuration - %s\n", err);
       exit(1);
     }
-    return;
   }
 #endif
 
@@ -3331,9 +3330,9 @@ CacheProcessor::open_write(Continuation *cont, int expected_size, const HttpCach
                            CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache, CacheFragType type)
 {
 #ifdef CLOUD_CACHE
-  if (cache_config_cloud_cache_enabled > 0) {
-    return theCloudCache.open_write(cont, expected_size, key, request, old_info, pin_in_cache);
-  }
+//  if (cache_config_cloud_cache_enabled > 0) {
+//    return theCloudCache.open_write(cont, expected_size, key, request, old_info, pin_in_cache);
+//  }
 #endif
 
 #ifdef CLUSTER_CACHE

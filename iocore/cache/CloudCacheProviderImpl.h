@@ -22,15 +22,15 @@
  *  limitations under the License.
  */
 
-#ifndef __CLOUD_PROVIDER_H__
-#define __CLOUD_PROVIDER_H__
+#ifndef __CLOUD_CACHE_PROVIDER_IMPL_H__
+#define __CLOUD_CACHE_PROVIDER_IMPL_H__
 
 
-class CloudProvider
+class CloudCacheProviderImpl
 {
 public:
 //  CloudProvider() {}
-  virtual ~CloudProvider() {}
+  virtual ~CloudCacheProviderImpl() {}
 
   virtual const char *read_config() = 0;
 
@@ -41,6 +41,8 @@ public:
 
   virtual Action *open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
                              CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache) = 0;
+
+  virtual std::string getProviderName() = 0;
 };
 
-#endif /* __CLOUD_PROVIDER_H__ */
+#endif /* __CLOUD_CACHE_PROVIDER_IMPL_H__ */

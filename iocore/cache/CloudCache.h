@@ -26,7 +26,7 @@
 #define __CLOUD_CACHE_H__
 
 #include "P_Cache.h"
-#include "CloudProvider.h"
+#include "CloudCacheProviderImpl.h"
 
 
 class CloudCache
@@ -62,8 +62,12 @@ public:
 
   static IOBufferReader *getHTTPSMIOBufferReader(Continuation *cont);
 
+  int64_t getObjectSize(void *cloudCacheInfo);
+
+  char *getResponseHeader(void *cloudCacheInfo, int64_t *headerLength);
+
 private:
-  CloudProvider *cCache;
+  CloudCacheProviderImpl *cCache;
 };
 
 #endif /* __CLOUD_CACHE_H__ */

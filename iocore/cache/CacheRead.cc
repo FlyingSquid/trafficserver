@@ -101,6 +101,14 @@ Action *
 Cache::open_read(Continuation *cont, const CacheKey *key, CacheHTTPHdr *request, CacheLookupHttpConfig *params, CacheFragType type,
                  const char *hostname, int host_len)
 {
+  Debug("FLYING_SQUID", "in Cache::open_read");
+#ifdef CLOUD_CACHE
+  if (cache_config_cloud_cache_enabled > 0) {
+    Debug("FLYING_SQUID", "in Cache:open_read, cloud cache enabled and calling open_read");
+    return theCloudCache.open_read(cont, (const HttpCacheKey *) key, request, params);
+  }
+#endif
+
   if (!CacheProcessor::IsCacheReady(type)) {
     cont->handleEvent(CACHE_EVENT_OPEN_READ_FAILED, (void *)-ECACHE_NOT_READY);
     return ACTION_RESULT_DONE;
@@ -149,16 +157,13 @@ Cache::open_read(Continuation *cont, const CacheKey *key, CacheHTTPHdr *request,
       return &c->_action;
     }
   }
+
 Lmiss:
-#ifdef CLOUD_CACHE
-  if (cache_config_cloud_cache_enabled > 0)
-//    return theCloudCache.open_read(cont, key, request, params);
-#endif
   CACHE_INCREMENT_DYN_STAT(cache_read_failure_stat);
   cont->handleEvent(CACHE_EVENT_OPEN_READ_FAILED, (void *)-ECACHE_NO_DOC);
   return ACTION_RESULT_DONE;
 Lwriter:
-  // this is a horrible violation of the interface and should be fixed (FIXME)
+  // this is a horrible violation of the interfeace and should be fixed (FIXME)
   ((HttpCacheSM *)cont)->set_readwhilewrite_inprogress(true);
   SET_CONTINUATION_HANDLER(c, &CacheVC::openReadFromWriter);
   if (c->handleEvent(EVENT_IMMEDIATE, 0) == EVENT_DONE)

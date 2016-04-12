@@ -26,6 +26,7 @@
 #include <aws/s3/S3Client.h>
 #include <aws/s3/model/GetObjectRequest.h>
 #include <aws/s3/model/PutObjectRequest.h>
+#include <aws/s3/model/CopyObjectRequest.h>
 #include <aws/core/utils/HashingUtils.h>
 
 #include "AWSCache.h"
@@ -44,9 +45,11 @@ using namespace Aws::Auth;
 using namespace Aws::Utils;
 
 
-DefaultAWSCache::DefaultAWSCache() : CloudProvider() {
+DefaultAWSCache::DefaultAWSCache() : CloudCacheProviderImpl() {
+  Debug("FLYING_SQUID", "in DefaultAWSCache::DefaultAWSCache");
+
   // Initialize Redis client
-  if (!redisCli.Initialize("127.0.0.1", 30001, 2, 10)) { // TODO: get values from config file
+  if (!redisClient.Initialize("127.0.0.1", 30001, 2, 10)) { // TODO: get values from config file
     // TODO: handle error
   }
 
@@ -64,12 +67,14 @@ DefaultAWSCache::~DefaultAWSCache() {}
 
 bool DefaultAWSCache::getRedisObjectLock(string key, CLock &lock)
 {
+  Debug("FLYING_SQUID", "in DefaultAWSCache::getRedisObjectLock");
   return redisLockManager->ContinueLock(key.c_str(), REDLOCK_TTL, lock);
 }
 
 
-bool DefaultAWSCache::releaseRedisObjectLock(string key, Clock &lock)
+bool DefaultAWSCache::releaseRedisObjectLock(string key, CLock &lock)
 {
+  Debug("FLYING_SQUID", "in DefaultAWSCache::releaseRedisObjectLock");
   // Redlock library has this always return true
   return redisLockManager->Unlock(lock);
 }
@@ -77,31 +82,36 @@ bool DefaultAWSCache::releaseRedisObjectLock(string key, Clock &lock)
 
 bool DefaultAWSCache::objectInCache(string key)
 {
+  Debug("FLYING_SQUID", "in DefaultAWSCache::objectInCache");
   long exists;
-  if (redisClient.Exists(key, exists) == RC_SUCCESS) {
+  if (redisClient.Exists(key, &exists) == RC_SUCCESS) {
     return (exists == 1);
   }
   // TODO: handle error
+  return false;
 }
 
 
-ObjectCacheMeta DefaultAWSCache::getObjectCacheMeta(string key)
+DefaultAWSCache::ObjectCacheMeta *DefaultAWSCache::getObjectCacheMeta(string key)
 {
-  string value;
-  if (redisClient.Get(key, &value) == RC_SUCCESS) {
-    return (ObjectCacheMeta) value.c_str();
+  Debug("FLYING_SQUID", "in DefaultAWSCache::getObjectCacheMeta");
+  string *value = new string;
+  if (redisClient.Get(key, value) == RC_SUCCESS) {
+    return (ObjectCacheMeta *) value->c_str();
   }
   // TODO: handle error
+  return NULL;
 }
 
 
 inline long getNowTimestamp() {
-  return (long) duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+  return (long) std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 
 bool DefaultAWSCache::objectInCloudFront(ObjectCacheMeta m)
 {
+  Debug("FLYING_SQUID", "in DefaultAWSCache::objectInCloudFront");
   // TODO: add fuzziness in this check (if within certain threshold, return true)?
   return m.cloudFrontExpiry > getNowTimestamp();
 }
@@ -109,45 +119,53 @@ bool DefaultAWSCache::objectInCloudFront(ObjectCacheMeta m)
 
 bool DefaultAWSCache::putObjectCacheMeta(string key, ObjectCacheMeta m)
 {
+  Debug("FLYING_SQUID", "in DefaultAWSCache::putObjectCacheMeta");
   // Set expiry time in Redis metadata store
-  if (redisClient.Set(key, string((char *) m)) == RC_SUCCESS) {
+  if (redisClient.Set(key, string((char *) &m)) == RC_SUCCESS) {
     // Set expiry time on S3 object
     CopyObjectRequest copyObjectRequest;
     copyObjectRequest.SetExpires((double) m.cloudFrontExpiry);
-    CopyObjectOutcome copyObjectOutcome = s3Client->CopyObject(copyObjectRequest);
-    if (CopyObjectOutcome.IsSuccess()) {
+    CopyObjectOutcome copyObjectOutcome = s3Client.CopyObject(copyObjectRequest);
+    if (copyObjectOutcome.IsSuccess()) {
       // TODO: handle success, return true?
+      return true;
     } else {
       // TODO: handle error, return false?
+      return false;
     }
 
   }
   // TODO: handle error
+  return false;
 }
 
 
 string DefaultAWSCache::getObjectCloudFrontLocation(string key)
 {
+  Debug("FLYING_SQUID", "in DefaultAWSCache::getObjectCloudFrontLocation");
   return cloudFrontDistrBase + key;
 }
 
 void DefaultAWSCache::setCloudFrontRedirect(HttpSM *httpSM, string url)
 {
+  Debug("FLYING_SQUID", "in DefaultAWSCache::setCloudFrontRedirect");
   httpSM->enable_redirection = true;
-  httpSM->redirect_url = url.c_str();
+  httpSM->redirect_url = (char *) url.c_str();
   httpSM->redirect_url_len = url.length();
 }
 
 bool DefaultAWSCache::putObjectS3(string key, IOBufferReader *buf) {
+  Debug("FLYING_SQUID", "in DefaultAWSCache::putObjectS3");
   PutObjectRequest putObjectRequest;
   putObjectRequest.SetBucket(s3BucketName);
-  Debug("cloud_cache_aws", "cache write hash key: %s", key);
   putObjectRequest.SetKey(key);
 
-  char writeBuf[buf->read_avail()];
+  char wb[buf->read_avail()];
   // TODO: error checking to make sure we actually read the number of bytes we wanted
   // TODO: make more robust for large objects and multipart upload?
-  buf->read(writeBuf, buf->read_avail());
+  buf->read(wb, buf->read_avail());
+  std::stringbuf writeBuf;
+  writeBuf.pubsetbuf(wb, buf->read_avail());
   std::shared_ptr<Aws::IOStream> writestream = Aws::MakeShared<Aws::IOStream>(AWSCACHE_ALLOCATION_TAG, &writeBuf);
   putObjectRequest.SetBody(writestream);
   putObjectRequest.SetContentLength(static_cast<long>(putObjectRequest.GetBody()->tellp()));
@@ -157,8 +175,9 @@ bool DefaultAWSCache::putObjectS3(string key, IOBufferReader *buf) {
   return putObjectOutcome.IsSuccess();
 }
 
-char *DefaultAWSCache::getObjectS3(string key, const char *rangeValue = NULL)
+char *DefaultAWSCache::getObjectS3(string key, long *sizeOfObject, const char *rangeValue = NULL)
 {
+  Debug("FLYING_SQUID", "in DefaultAWSCache::getObjectS3");
   GetObjectRequest getObjectRequest;
   getObjectRequest.SetBucket(s3BucketName);
   getObjectRequest.SetKey(key);
@@ -174,7 +193,9 @@ char *DefaultAWSCache::getObjectS3(string key, const char *rangeValue = NULL)
   );
   auto getObjectOutcome = s3Client.GetObject(getObjectRequest);
   if(getObjectOutcome.IsSuccess()) {
-    return buf.str().c_str();
+    GetObjectResult *getObjectResult = &(getObjectOutcome.GetResult());
+    *sizeOfObject = getObjectResult->GetContentLength();
+    return (char *) buf.str().c_str();
   } else {
     return NULL;
   }
@@ -184,6 +205,7 @@ char *DefaultAWSCache::getObjectS3(string key, const char *rangeValue = NULL)
 const char *
 DefaultAWSCache::read_config()
 {
+  Debug("FLYING_SQUID", "in DefaultAWSCache::read_config");
   const char *err = NULL;
   ats_scoped_fd fd;
   ats_scoped_str storage_path(RecConfigReadConfigPath(REC_CONFIG_AWS_CONFIG_FILE_FIELD, AWSCACHE_CONFIG_FILENAME));
@@ -199,11 +221,11 @@ DefaultAWSCache::read_config()
   // TODO: finish reading of config file, look at Store.cc
 
   // TODO: read CloudFront distribution name
-  s3bucket_name = "flyingsquid-ats-test2-sunjay";
+  s3BucketName = "flyingsquid-ats-test2-sunjay";
 
 //  ::close(fd);
 
-  Debug("cloud_cache_aws", "using S3 bucket: %s", s3bucket_name);
+  Debug("FLYING_SQUID", "using S3 bucket: %s", s3BucketName.c_str());
 
 Lfail:
   // write error message
@@ -215,30 +237,36 @@ Action *
 DefaultAWSCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
                     CacheLookupHttpConfig *params)
 {
+Debug("FLYING_SQUID", "in DefaultAWSCache::open_read");
   string keyStr = to_string(cache_hash(key->hash));
 
   if (objectInCache(keyStr)) {
-    Clock redisLock;
-    if (!getRedisObjectLock(keyStr, &redisLock)) {
+Debug("FLYING_SQUID", "object in cache");
+    CLock redisLock;
+    if (!getRedisObjectLock(keyStr, redisLock)) {
       // TODO: handle error
     }
 
-    ObjectCacheMeta m = getObjectCacheMeta(keyStr);
+    ObjectCacheMeta *m = getObjectCacheMeta(keyStr);
 
-    if (objectInCloudFront(m)) {
+    if (objectInCloudFront(*m)) {
+Debug("FLYING_SQUID", "object in CloudFront");
       // TODO: if accessed very recently, move to local RAM cache
 
       // TODO: increment CF life if close to expiration
 
       setCloudFrontRedirect((HttpSM *) cont, getObjectCloudFrontLocation(keyStr));
     } else {
+Debug("FLYING_SQUID", "object not in CloudFront");
+
       // TODO: if object accessed last before some threshold, serve from S3
       if (1/*the above*/) {
+Debug("FLYING_SQUID", "object stale, serving from S3");
         char *doc;
-        if (doc = getObjectS3(keyStr)) {
-          CacheVC *cacheVC = (CacheVC *((HttpCacheSM *)cont)->cache_read_vc);
-          char *cacheVCBuf = cacheVC->buf;
-          (*cacheVCBuf) = doc;
+        long objectSize;
+        if ((doc = getObjectS3(keyStr, &objectSize))) {
+          CacheVC *cacheVC = (CacheVC *) (((HttpCacheSM *)cont)->cache_read_vc);
+          memcpy(cacheVC->buf->_data, doc, objectSize);
 
           // TODO: may be the wrong action below, also may change for chunked downloads from S3
 
@@ -260,14 +288,23 @@ DefaultAWSCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTT
       }
     }
 
-    if (!releaseRedisObjectLock(keyStr, &redisLock)) {
+    // TODO: if m was modified, update in Redis
+
+    ((HttpSM *) cont)->t_state.cloud_cache_info = (void *) m;
+
+    if (!releaseRedisObjectLock(keyStr, redisLock)) {
       // TODO: handle error
     }
   } else {
-    CACHE_INCREMENT_DYN_STAT(cache_read_failure_stat);
+Debug("FLYING_SQUID", "object not in cache");
+    // TODO: add in statistics -> CACHE_INCREMENT_DYN_STAT(cache_read_failure_stat);
     cont->handleEvent(CACHE_EVENT_OPEN_READ_FAILED, (void *)-ECACHE_NO_DOC);
     return ACTION_RESULT_DONE;
   }
+
+
+  // TODO: fix above to return the correct action, etc.
+  return ACTION_RESULT_DONE;
 }
 
 
@@ -275,10 +312,11 @@ Action *
 DefaultAWSCache::open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
                             CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache)
 {
+Debug("FLYING_SQUID", "in DefaultAWSCache::open_write");
   string keyStr = to_string(cache_hash(key->hash));
 
   // Get pointer to IOBufferReader with data from origin server
-  IOBufferReader *reader = getHTTPSMIOBufferReader(cont);
+  IOBufferReader *reader = CloudCache::getHTTPSMIOBufferReader(cont);
 
   if (putObjectS3(keyStr, reader)) {
     // Make Object meta object to put in Redis
@@ -286,6 +324,13 @@ DefaultAWSCache::open_write(Continuation *cont, int expected_size, const HttpCac
     m.size = (size_t) expected_size;
     m.lastAccessed = getNowTimestamp();
     m.cloudFrontExpiry = 0;
+    HttpTransact::HeaderInfo *hdr_info = &(((HttpSM *) cont)->t_state.hdr_info);
+    m.headerLength = hdr_info->response_content_length;
+    char *buf = (char *) malloc(hdr_info->response_content_length);
+    int bufIndex = 0;
+    hdr_info->client_response.print(buf, hdr_info->response_content_length, &bufIndex, &bufIndex);
+    memcpy(m.responseHeader, buf, hdr_info->response_content_length);
+    free(buf);
     putObjectCacheMeta(keyStr, m);
 
     // TODO: update stats, maybe have different handler etc.
