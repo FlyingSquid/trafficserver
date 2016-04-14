@@ -39,7 +39,7 @@ public:
   virtual Action *open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr *request,
                              CacheLookupHttpConfig *params) = 0;
 
-  virtual Action *open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
+  virtual Action *open_write(Continuation *cont, CacheVC *cacheVC, const HttpCacheKey *key,
                              CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache) = 0;
 
   virtual std::string getProviderName() = 0;

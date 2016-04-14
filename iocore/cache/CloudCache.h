@@ -53,7 +53,7 @@ public:
   /**
    * TODO: document
    */
-  Action *open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
+  Action *open_write(Continuation *cont, CacheVC *cacheVC, const HttpCacheKey *key,
                      CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache);
 
   // TODO: find the other cache actions and implement

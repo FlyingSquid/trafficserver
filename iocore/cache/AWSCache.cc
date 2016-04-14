@@ -309,19 +309,25 @@ Debug("FLYING_SQUID", "object not in cache");
 
 
 Action *
-DefaultAWSCache::open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
+DefaultAWSCache::open_write(Continuation *cont, CacheVC *cacheVC, const HttpCacheKey *key,
                             CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache)
 {
 Debug("FLYING_SQUID", "in DefaultAWSCache::open_write");
+
+  if (!key)
+    Debug("FLYING_SQUID", "key is NULL");
+
   string keyStr = to_string(cache_hash(key->hash));
 
+Debug("FLYING_SQUID", "got keyStr");
+
   // Get pointer to IOBufferReader with data from origin server
-  IOBufferReader *reader = CloudCache::getHTTPSMIOBufferReader(cont);
+  IOBufferReader *reader = cacheVC->vio.buffer.reader();
 
   if (putObjectS3(keyStr, reader)) {
     // Make Object meta object to put in Redis
     ObjectCacheMeta m;
-    m.size = (size_t) expected_size;
+    m.size = (size_t) reader->read_avail();
     m.lastAccessed = getNowTimestamp();
     m.cloudFrontExpiry = 0;
     HttpTransact::HeaderInfo *hdr_info = &(((HttpSM *) cont)->t_state.hdr_info);

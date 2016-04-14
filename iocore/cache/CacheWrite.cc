@@ -1341,10 +1341,13 @@ int
 CacheVC::openWriteMain(int /* event ATS_UNUSED */, Event * /* e ATS_UNUSED */)
 {
   Debug("FLYING_SQUID", "num bytes avail: %ld", vio.buffer.reader()->read_avail());
+
+  Debug("FLYING_SQUID", "vio address: %p", (void *) &vio);
+
 #ifdef CLOUD_CACHE
   if (cache_config_cloud_cache_enabled > 0) {
    Debug("FLYING_SQUID", "about to call CloudCache::open_write");
-    theCloudCache.open_write(this->_action.continuation, 1000/*expected_size*/, (const HttpCacheKey *) read_key, NULL/*request*/, NULL/*old_info*/, NULL/*pin_in_cache*/);
+    theCloudCache.open_write(_action.continuation, this, (const HttpCacheKey *) &first_key, NULL/*request*/, NULL/*old_info*/, NULL/*pin_in_cache*/);
     return EVENT_DONE;
   }
 #endif

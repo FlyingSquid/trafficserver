@@ -68,52 +68,13 @@ CloudCache::open_read(Continuation *cont, const HttpCacheKey *key, CacheHTTPHdr 
 }
 
 Action *
-CloudCache::open_write(Continuation *cont, int expected_size, const HttpCacheKey *key,
+CloudCache::open_write(Continuation *cont, CacheVC *cacheVC, const HttpCacheKey *key,
                        CacheHTTPHdr *request, CacheHTTPInfo *old_info, time_t pin_in_cache)
 {
 Debug("FLYING_SQUID", "in CloudCache::open_write");
-  return cCache->open_write(cont, expected_size, key, request, old_info, pin_in_cache);
+  return cCache->open_write(cont, cacheVC, key, request, old_info, pin_in_cache);
 }
 
-
-IOBufferReader *
-CloudCache::getHTTPSMIOBufferReader(Continuation *cont)
-{
-  Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader");
-  HttpCacheSM *httpCacheSM = (HttpCacheSM *) cont;
-  Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader 2");
-//  HttpSM *httpSM = httpCacheSM->master_sm;
-//  Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader 3");
-  CacheVC *cacheVC = (CacheVC *) httpCacheSM->cache_write_vc;
-  Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader 3");
-  VIO *vio = &(cacheVC->vio);
-  Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader 4");
-  MIOBufferAccessor *mioBufferAccessor = &(vio->buffer);
-  if (mioBufferAccessor) {
-    Debug("FLYING_SQUID", "buffer is not NULL");
-    mioBufferAccessor->clear();
-    Debug("FLYING_SQUID", "cleared buffer accessor");
-  }
-  Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader 5");
-  IOBufferReader *ioBufferReader = mioBufferAccessor->reader();
-  Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader 6");
-  int64_t read_avail = ioBufferReader->read_avail();
-  Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader %ld bytes available", read_avail);
-
-//  HttpServerSession *httpServerSession = httpSM->get_server_session();
-//  Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader 4");
-//  if (!httpServerSession)
-//    Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader httpServerSession == NULL");
-//  if (!(httpSM->server_buffer_reader))
-//    Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader server_buffer_reader == NULL");
-//  UnixNetVConnection *netVC = (UnixNetVConnection *) httpServerSession->get_netvc();
-//  Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader 5");
-//  UnixNetVConnection *netVC = (UnixNetVConnection *) (((HttpCacheSM *) cont)->master_sm->get_server_session()->get_netvc());
-//  MIOBufferAccessor *buf = &(netVC->read.vio.buffer);
-//  IOBufferReader *reader = buf->reader();
-//  return reader;
-  return NULL;
-}
 
 int64_t
 CloudCache::getObjectSize(void *cloudCacheInfo)
