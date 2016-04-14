@@ -637,19 +637,14 @@ CacheVC::calluser(int event)
 TS_INLINE int
 CacheVC::callcont(int event)
 {
-  Debug("FLYING_SQUID", "here");
   recursive++;
   ink_assert(!vol || this_ethread() != vol->mutex->thread_holding);
   _action.continuation->handleEvent(event, this);
-  Debug("FLYING_SQUID", "after HandleEvent");
   recursive--;
   if (closed)
     die();
-  else if (vio.vc_server) {
-    Debug("FLYING_SQUID", "vio.vc_server");
+  else if (vio.vc_server)
     handleEvent(EVENT_IMMEDIATE, 0);
-  }
-  Debug("FLYING_SQUID", "before return");
   return EVENT_DONE;
 }
 

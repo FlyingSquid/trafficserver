@@ -1344,7 +1344,7 @@ CacheVC::openWriteMain(int /* event ATS_UNUSED */, Event * /* e ATS_UNUSED */)
 #ifdef CLOUD_CACHE
   if (cache_config_cloud_cache_enabled > 0) {
    Debug("FLYING_SQUID", "about to call CloudCache::open_write");
-//    theCloudCache.open_write(cont, 1000/*expected_size*/, (const HttpCacheKey *) key, NULL/*request*/, NULL/*old_info*/, NULL/*pin_in_cache*/);
+    theCloudCache.open_write(this->_action.continuation, 1000/*expected_size*/, (const HttpCacheKey *) read_key, NULL/*request*/, NULL/*old_info*/, NULL/*pin_in_cache*/);
     return EVENT_DONE;
   }
 #endif
@@ -1725,7 +1725,6 @@ Debug("FLYING_SQUID", "here");
     ink_assert(!(c->update_key == zero_key));
     c->update_len = info->object_size_get();
   } else
-  Debug("FLYING_SQUID", "here 3");
     c->base_stat = cache_write_active_stat;
   CACHE_INCREMENT_DYN_STAT(c->base_stat + CACHE_STAT_ACTIVE);
   c->pin_in_cache = (uint32_t)apin_in_cache;

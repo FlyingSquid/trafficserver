@@ -89,6 +89,11 @@ CloudCache::getHTTPSMIOBufferReader(Continuation *cont)
   VIO *vio = &(cacheVC->vio);
   Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader 4");
   MIOBufferAccessor *mioBufferAccessor = &(vio->buffer);
+  if (mioBufferAccessor) {
+    Debug("FLYING_SQUID", "buffer is not NULL");
+    mioBufferAccessor->clear();
+    Debug("FLYING_SQUID", "cleared buffer accessor");
+  }
   Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader 5");
   IOBufferReader *ioBufferReader = mioBufferAccessor->reader();
   Debug("FLYING_SQUID", "in CloudCache::getHTTPSMIOBufferReader 6");
