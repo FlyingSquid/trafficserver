@@ -154,24 +154,28 @@ void DefaultAWSCache::setCloudFrontRedirect(HttpSM *httpSM, string url)
   httpSM->redirect_url_len = url.length();
 }
 
-bool DefaultAWSCache::putObjectS3(string key, IOBufferReader *buf) {
-  Debug("FLYING_SQUID", "in DefaultAWSCache::putObjectS3");
+bool DefaultAWSCache::putObjectS3(string key, IOBufferReader *buf, int64_t *size) {
+Debug("FLYING_SQUID", "in DefaultAWSCache::putObjectS3");
   PutObjectRequest putObjectRequest;
   putObjectRequest.SetBucket(s3BucketName);
   putObjectRequest.SetKey(key);
 
-  char wb[buf->read_avail()];
+  *size = buf->read_avail();
+Debug("FLYING_SQUID", "object size 2: %ld", *size);
+  char wb[*size];
   // TODO: error checking to make sure we actually read the number of bytes we wanted
   // TODO: make more robust for large objects and multipart upload?
-  buf->read(wb, buf->read_avail());
+  buf->read(wb, *size);
+Debug("FLYING_SQUID", "in DefaultAWSCache::putObjectS3 2");
   std::stringbuf writeBuf;
-  writeBuf.pubsetbuf(wb, buf->read_avail());
+  writeBuf.pubsetbuf(wb, *size);
+Debug("FLYING_SQUID", "in DefaultAWSCache::putObjectS3 3");
   std::shared_ptr<Aws::IOStream> writestream = Aws::MakeShared<Aws::IOStream>(AWSCACHE_ALLOCATION_TAG, &writeBuf);
   putObjectRequest.SetBody(writestream);
   putObjectRequest.SetContentLength(static_cast<long>(putObjectRequest.GetBody()->tellp()));
   putObjectRequest.SetContentMD5(HashingUtils::Base64Encode(HashingUtils::CalculateMD5(*putObjectRequest.GetBody())));
   PutObjectOutcome putObjectOutcome = s3Client.PutObject(putObjectRequest);
-
+Debug("FLYING_SQUID", "in DefaultAWSCache::putObjectS3 4");
   return putObjectOutcome.IsSuccess();
 }
 
@@ -323,21 +327,32 @@ Debug("FLYING_SQUID", "got keyStr");
 
   // Get pointer to IOBufferReader with data from origin server
   IOBufferReader *reader = cacheVC->vio.buffer.reader();
+  int64_t size;
 
-  if (putObjectS3(keyStr, reader)) {
+  if (putObjectS3(keyStr, reader, &size)) {
     // Make Object meta object to put in Redis
+Debug("FLYING_SQUID", "object put in S3");
+Debug("FLYING_SQUID", "object size: %ld", size);
     ObjectCacheMeta m;
-    m.size = (size_t) reader->read_avail();
+
+    m.size = (size_t) size;
     m.lastAccessed = getNowTimestamp();
     m.cloudFrontExpiry = 0;
     HttpTransact::HeaderInfo *hdr_info = &(((HttpSM *) cont)->t_state.hdr_info);
     m.headerLength = hdr_info->response_content_length;
+Debug("FLYING_SQUID", "header size is %ld", m.headerLength);
     char *buf = (char *) malloc(hdr_info->response_content_length);
+Debug("FLYING_SQUID", "header size is (2) %d", hdr_info->client_response.length_get());
     int bufIndex = 0;
+Debug("FLYING_SQUID", "in DefaultAWSCache::open_write 5");
     hdr_info->client_response.print(buf, hdr_info->response_content_length, &bufIndex, &bufIndex);
+Debug("FLYING_SQUID", "in DefaultAWSCache::open_write 6");
     memcpy(m.responseHeader, buf, hdr_info->response_content_length);
+Debug("FLYING_SQUID", "in DefaultAWSCache::open_write 7");
     free(buf);
+Debug("FLYING_SQUID", "in DefaultAWSCache::open_write 8");
     putObjectCacheMeta(keyStr, m);
+Debug("FLYING_SQUID", "in DefaultAWSCache::open_write 9");
 
     // TODO: update stats, maybe have different handler etc.
     return ACTION_RESULT_DONE;
