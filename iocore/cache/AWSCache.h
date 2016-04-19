@@ -109,7 +109,7 @@ private:
 
   void setCloudFrontRedirect(HttpSM *httpSM, string url);
 
-  bool putObjectS3(string key, IOBufferReader *buf);
+  bool putObjectS3(string key, IOBufferReader *buf, int64_t *size);
 
   char *getObjectS3(string key, long *sizeofObject, const char *rangeValue);
 
