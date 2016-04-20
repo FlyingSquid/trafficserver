@@ -45,7 +45,7 @@
   -------------------------------------------------------------------------*/
 
 MIMEParseResult
-HTTPHdr::parse_req(HTTPParser *parser, IOBufferReader *r, int *bytes_used, bool eof)
+HTTPHdr::parse_req(HTTPParser *parser, IOBufferReader *r, int *bytes_used, bool eof, bool strict_uri_parsing)
 {
   const char *start;
   const char *tmp;
@@ -57,7 +57,6 @@ HTTPHdr::parse_req(HTTPParser *parser, IOBufferReader *r, int *bytes_used, bool 
 
   MIMEParseResult state = PARSE_CONT;
   *bytes_used = 0;
-
 
   do {
     int64_t b_avail = r->block_read_avail();
@@ -72,7 +71,7 @@ HTTPHdr::parse_req(HTTPParser *parser, IOBufferReader *r, int *bytes_used, bool 
     int heap_slot = m_heap->attach_block(r->get_current_block(), start);
 
     m_heap->lock_ronly_str_heap(heap_slot);
-    state = http_parser_parse_req(parser, m_heap, m_http, &tmp, end, false, eof);
+    state = http_parser_parse_req(parser, m_heap, m_http, &tmp, end, false, eof, strict_uri_parsing);
     m_heap->set_ronly_str_heap_end(heap_slot, tmp);
     m_heap->unlock_ronly_str_heap(heap_slot);
 
@@ -145,7 +144,6 @@ HdrHeap::set_ronly_str_heap_end(int slot, const char *end)
 
   m_ronly_heap[slot].m_heap_len = (int)(end - m_ronly_heap[slot].m_heap_start);
 }
-
 
 // void HdrHeap::attach_block(IOBufferBlock* b, const char* use_start)
 //

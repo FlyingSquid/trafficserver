@@ -32,8 +32,8 @@
 # Version number is calculated as MAJOR * 1000000 + MINOR * 1000 + MICRO
 # Version string is in the form of MAJOR.MINOR.MICRO[sufix]
 #
-m4_define([TS_VERSION_S],[6.2.0])
-m4_define([TS_VERSION_N],[6002000])
+m4_define([TS_VERSION_S],[7.0.0])
+m4_define([TS_VERSION_N],[7000000])
 
 AC_INIT([Apache Traffic Server], TS_VERSION_S(), [dev@trafficserver.apache.org], [trafficserver],[http://trafficserver.apache.org])
 AC_PREREQ([2.59])
@@ -1988,6 +1988,7 @@ AC_CONFIG_FILES([
   plugins/cacheurl/Makefile
   plugins/conf_remap/Makefile
   plugins/experimental/Makefile
+  plugins/experimental/acme/Makefile
   plugins/experimental/authproxy/Makefile
   plugins/experimental/background_fetch/Makefile
   plugins/experimental/balancer/Makefile

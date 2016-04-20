@@ -21,7 +21,6 @@
   limitations under the License.
  */
 
-
 #include "P_Cache.h"
 
 // Cache Inspector and State Pages
@@ -54,7 +53,6 @@ static short int const CACHE_DB_MAJOR_VERSION_COMPATIBLE = 21;
     RecSetRawStatSum(rsb, x, 0);   \
     RecSetRawStatCount(rsb, x, 0); \
   } while (0);
-
 
 // Configuration
 
@@ -92,7 +90,6 @@ int cache_config_compatibility_4_2_0_fixup = 1;
 int cache_config_cloud_cache_enabled = 0;
 char *cache_config_cloud_cache_provider = NULL;
 #endif
-
 
 // Globals
 
@@ -944,7 +941,6 @@ CacheProcessor::cacheInitialized()
       cacheProcessor.max_stripe_version = v->header->version;
   }
 
-
   if (caches_ready) {
     Debug("cache_init", "CacheProcessor::cacheInitialized - caches_ready=0x%0X, gnvol=%d", (unsigned int)caches_ready, gnvol);
 
@@ -981,11 +977,9 @@ CacheProcessor::cacheInitialized()
 
           CACHE_VOL_SUM_DYN_STAT(cache_bytes_total_stat, vol_total_cache_bytes);
 
-
           vol_total_direntries = gvol[i]->buckets * gvol[i]->segments * DIR_DEPTH;
           total_direntries += vol_total_direntries;
           CACHE_VOL_SUM_DYN_STAT(cache_direntries_total_stat, vol_total_direntries);
-
 
           vol_used_direntries = dir_entries_used(gvol[i]);
           CACHE_VOL_SUM_DYN_STAT(cache_direntries_used_stat, vol_used_direntries);
@@ -1036,7 +1030,6 @@ CacheProcessor::cacheInitialized()
           vol_total_direntries = gvol[i]->buckets * gvol[i]->segments * DIR_DEPTH;
           total_direntries += vol_total_direntries;
           CACHE_VOL_SUM_DYN_STAT(cache_direntries_total_stat, vol_total_direntries);
-
 
           vol_used_direntries = dir_entries_used(gvol[i]);
           CACHE_VOL_SUM_DYN_STAT(cache_direntries_used_stat, vol_used_direntries);
@@ -1302,7 +1295,6 @@ vol_init_dir(Vol *d)
   }
 }
 
-
 void
 vol_clear_init(Vol *d)
 {
@@ -1398,7 +1390,6 @@ Vol::init(char *s, off_t blocks, off_t dir_skip, bool clear)
   header = (VolHeaderFooter *)raw_dir;
   footer = (VolHeaderFooter *)(raw_dir + vol_dirlen(this) - ROUND_TO_STORE_BLOCK(sizeof(VolHeaderFooter)));
 
-
   if (clear) {
     Note("clearing cache directory '%s'", hash_text.get());
     return clear_dir();
@@ -1488,9 +1479,7 @@ Vol::handle_dir_read(int event, void *data)
 
   sector_size = header->sector_size;
 
-
   return this->recover_data();
-
 
   return EVENT_CONT;
 }
@@ -1873,7 +1862,6 @@ Vol::dir_init_done(int /* event ATS_UNUSED */, void * /* data ATS_UNUSED */)
     return EVENT_DONE;
   }
 }
-
 
 // explicit pair for random table in build_vol_hash_table
 struct rtable_pair {
@@ -2457,7 +2445,6 @@ Ldone:
   return handleEvent(AIO_EVENT_DONE, 0);
 }
 
-
 int
 CacheVC::handleRead(int /* event ATS_UNUSED */, Event * /* e ATS_UNUSED */)
 {
@@ -2667,7 +2654,6 @@ CacheVConnection::CacheVConnection() : VConnection(NULL)
 {
 }
 
-
 void
 cplist_init()
 {
@@ -2705,7 +2691,6 @@ cplist_init()
     }
   }
 }
-
 
 void
 cplist_update()
@@ -2805,7 +2790,6 @@ fillExclusiveDisks(CacheVol *cp)
   }
   return diskCount;
 }
-
 
 int
 cplist_reconfigure()
@@ -3200,7 +3184,6 @@ register_cache_stats(RecRawStatBlock *rsb, const char *prefix)
   REG_INT("sync.time", cache_directory_sync_time_stat);
 }
 
-
 void
 ink_cache_init(ModuleVersion v)
 {
@@ -3264,7 +3247,6 @@ ink_cache_init(ModuleVersion v)
   REC_EstablishStaticConfigInt32(cache_config_compatibility_4_2_0_fixup, "proxy.config.cache.http.compatibility.4-2-0-fixup");
 #endif
 
-
   REC_EstablishStaticConfigInt32(cache_config_max_disk_errors, "proxy.config.cache.max_disk_errors");
   Debug("cache_init", "proxy.config.cache.max_disk_errors = %d", cache_config_max_disk_errors);
 
@@ -3322,7 +3304,6 @@ CacheProcessor::open_read(Continuation *cont, const HttpCacheKey *key, bool clus
 
   return caches[type]->open_read(cont, &key->hash, request, params, type, key->hostname, key->hostlen);
 }
-
 
 //----------------------------------------------------------------------------
 Action *

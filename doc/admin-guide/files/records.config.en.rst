@@ -1040,6 +1040,11 @@ Value Effect
    An arbitrary string value that, if set, will be used to replace any request
    ``User-Agent`` header.
 
+.. ts:cv:: CONFIG proxy.config.http.strict_uri_parsing INT 0
+
+   Enables (``1``) or disables (``0``) Traffic Server to return a 400 Bad Request
+   if client's request URI includes character which is not RFC 3986 compliant
+
 Parent Proxy Configuration
 ==========================
 
@@ -1216,6 +1221,15 @@ Origin Server Connect Attempts
    :overridable:
 
    Limits the number of socket connections per origin server to the value specified. To enable, set to one (``1``).
+
+.. ts:cv:: CONFIG proxy.config.http.origin_max_connections_queue INT -1
+   :reloadable:
+   :overridable:
+
+   Limits the number of requests to be queued when the :ts:cv:`proxy.config.http.origin_max_connections` is reached.
+   When disabled (``-1``) requests are will wait indefinitely for an available connection. When set to ``0`` all 
+   requests past the :ts:cv:`proxy.config.http.origin_max_connections` will immediately fail. When set to ``>0`` 
+   ATS will queue that many requests to go to the origin, any additional requests past the limit will immediately fail. 
 
 .. ts:cv:: CONFIG proxy.config.http.origin_min_keep_alive_connections INT 0
    :reloadable:
