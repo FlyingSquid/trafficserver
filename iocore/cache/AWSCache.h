@@ -48,15 +48,40 @@
 class DefaultAWSCache : public CloudCacheProviderImpl
 {
 public:
-#pragma pack(1)
   struct ObjectCacheMeta {
     int64_t size; // Object size in bytes
     int64_t headerLength;
-    char responseHeader[AWS_REDIS_STORE_MAX_HEADER_SIZE];
+    char *responseHeader;
     long lastAccessed;
     long cloudFrontExpiry;
   };
-#pragma pack(0)
+
+  string objectCacheMetaToString(ObjectCacheMeta *m) {
+    return std::to_string((long) m->size) + "\n" + std::to_string((long) m->headerLength) + "\n" +
+           std::to_string(m->lastAccessed) + "\n" + std::to_string(m->cloudFrontExpiry) + "\n" + string(m->responseHeader);
+  }
+
+  ObjectCacheMeta *stringToObjectCacheMeta(string s) {
+    ObjectCacheMeta *m = (ObjectCacheMeta *) malloc(sizeof(*m));
+
+    std::stringstream ss;
+    ss << s;
+
+    string size, headerLength, lastAccessed, cloudFrontExpiry, responseHeader;
+    std::getline(ss, size);
+    std::getline(ss, headerLength);
+    std::getline(ss, lastAccessed);
+    std::getline(ss, cloudFrontExpiry);
+    responseHeader = ss.str();
+
+    m->size = (int64_t) std::stol(size);
+    m->headerLength = (int64_t) std::stol(headerLength);
+    m->lastAccessed = std::stol(lastAccessed);
+    m->cloudFrontExpiry = std::stol(cloudFrontExpiry);
+    m->responseHeader = (char *) responseHeader.c_str();
+
+    return m;
+  }
 
   DefaultAWSCache();
   ~DefaultAWSCache();
@@ -99,10 +124,10 @@ private:
   ObjectCacheMeta *getObjectCacheMeta(string key);
 
   // Check if object's CloudFront expiry is in the future
-  bool objectInCloudFront(ObjectCacheMeta m);
+  bool objectInCloudFront(ObjectCacheMeta *m);
 
   // Save object metadata in Redis datastore and S3 (expiry field)
-  bool putObjectCacheMeta(string key, ObjectCacheMeta m);
+  bool putObjectCacheMeta(string key, ObjectCacheMeta *m);
 
   // Get CloudFront resource URL (for redirecting client)
   string getObjectCloudFrontLocation(string key);

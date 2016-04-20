@@ -51,6 +51,7 @@ DefaultAWSCache::DefaultAWSCache() : CloudCacheProviderImpl() {
   // Initialize Redis client
   if (!redisClient.Initialize("127.0.0.1", 30001, 2, 10)) { // TODO: get values from config file
     // TODO: handle error
+    Debug("FLYING_SQUID", "error initializing redis client");
   }
 
   // Initialize Redis lock manager
@@ -97,7 +98,7 @@ DefaultAWSCache::ObjectCacheMeta *DefaultAWSCache::getObjectCacheMeta(string key
   Debug("FLYING_SQUID", "in DefaultAWSCache::getObjectCacheMeta");
   string *value = new string;
   if (redisClient.Get(key, value) == RC_SUCCESS) {
-    return (ObjectCacheMeta *) value->c_str();
+    return stringToObjectCacheMeta(*value);
   }
   // TODO: handle error
   return NULL;
@@ -109,33 +110,39 @@ inline long getNowTimestamp() {
 }
 
 
-bool DefaultAWSCache::objectInCloudFront(ObjectCacheMeta m)
+bool DefaultAWSCache::objectInCloudFront(ObjectCacheMeta *m)
 {
   Debug("FLYING_SQUID", "in DefaultAWSCache::objectInCloudFront");
   // TODO: add fuzziness in this check (if within certain threshold, return true)?
-  return m.cloudFrontExpiry > getNowTimestamp();
+  return m->cloudFrontExpiry > getNowTimestamp();
 }
 
 
-bool DefaultAWSCache::putObjectCacheMeta(string key, ObjectCacheMeta m)
+bool DefaultAWSCache::putObjectCacheMeta(string key, ObjectCacheMeta *m)
 {
   Debug("FLYING_SQUID", "in DefaultAWSCache::putObjectCacheMeta");
   // Set expiry time in Redis metadata store
-  if (redisClient.Set(key, string((char *) &m)) == RC_SUCCESS) {
+  if (redisClient.Set(key, objectCacheMetaToString(m)) == RC_SUCCESS) {
     // Set expiry time on S3 object
     CopyObjectRequest copyObjectRequest;
-    copyObjectRequest.SetExpires((double) m.cloudFrontExpiry);
+    copyObjectRequest.SetBucket(s3BucketName);
+    copyObjectRequest.SetKey(key);
+    copyObjectRequest.SetExpires((double) m->cloudFrontExpiry);
+    copyObjectRequest.SetContentLength(m->size);
     CopyObjectOutcome copyObjectOutcome = s3Client.CopyObject(copyObjectRequest);
     if (copyObjectOutcome.IsSuccess()) {
       // TODO: handle success, return true?
       return true;
     } else {
       // TODO: handle error, return false?
+      Debug("FLYING_SQUID", "error in S3::CopyObject");
+      cout << copyObjectOutcome.GetError().GetMessage() << endl;
       return false;
     }
 
   }
   // TODO: handle error
+  Debug("FLYING_SQUID", "error in redisClient.Set()");
   return false;
 }
 
@@ -172,7 +179,7 @@ Debug("FLYING_SQUID", "in DefaultAWSCache::putObjectS3 2");
 Debug("FLYING_SQUID", "in DefaultAWSCache::putObjectS3 3");
   std::shared_ptr<Aws::IOStream> writestream = Aws::MakeShared<Aws::IOStream>(AWSCACHE_ALLOCATION_TAG, &writeBuf);
   putObjectRequest.SetBody(writestream);
-  putObjectRequest.SetContentLength(static_cast<long>(putObjectRequest.GetBody()->tellp()));
+  putObjectRequest.SetContentLength(static_cast<long>(*size));
   putObjectRequest.SetContentMD5(HashingUtils::Base64Encode(HashingUtils::CalculateMD5(*putObjectRequest.GetBody())));
   PutObjectOutcome putObjectOutcome = s3Client.PutObject(putObjectRequest);
 Debug("FLYING_SQUID", "in DefaultAWSCache::putObjectS3 4");
@@ -253,7 +260,7 @@ Debug("FLYING_SQUID", "object in cache");
 
     ObjectCacheMeta *m = getObjectCacheMeta(keyStr);
 
-    if (objectInCloudFront(*m)) {
+    if (objectInCloudFront(m)) {
 Debug("FLYING_SQUID", "object in CloudFront");
       // TODO: if accessed very recently, move to local RAM cache
 
@@ -334,25 +341,24 @@ Debug("FLYING_SQUID", "got keyStr");
 Debug("FLYING_SQUID", "object put in S3");
 Debug("FLYING_SQUID", "object size: %ld", size);
     ObjectCacheMeta m;
-
     m.size = (size_t) size;
     m.lastAccessed = getNowTimestamp();
     m.cloudFrontExpiry = 0;
     HttpTransact::HeaderInfo *hdr_info = &(((HttpSM *) cont)->t_state.hdr_info);
     m.headerLength = hdr_info->response_content_length;
-Debug("FLYING_SQUID", "header size is %ld", m.headerLength);
-    char *buf = (char *) malloc(hdr_info->response_content_length);
-Debug("FLYING_SQUID", "header size is (2) %d", hdr_info->client_response.length_get());
+
+    CacheHTTPInfo *httpInfo;
+    cacheVC->get_http_info(&httpInfo);
+    HTTPHdr *hdr = httpInfo->response_get();
+    m.headerLength = hdr->length_get();
+    m.responseHeader = (char *) malloc(m.headerLength + 1);
     int bufIndex = 0;
-Debug("FLYING_SQUID", "in DefaultAWSCache::open_write 5");
-    hdr_info->client_response.print(buf, hdr_info->response_content_length, &bufIndex, &bufIndex);
-Debug("FLYING_SQUID", "in DefaultAWSCache::open_write 6");
-    memcpy(m.responseHeader, buf, hdr_info->response_content_length);
-Debug("FLYING_SQUID", "in DefaultAWSCache::open_write 7");
-    free(buf);
-Debug("FLYING_SQUID", "in DefaultAWSCache::open_write 8");
-    putObjectCacheMeta(keyStr, m);
-Debug("FLYING_SQUID", "in DefaultAWSCache::open_write 9");
+    int dumpOffset = 0;
+    hdr->print(m.responseHeader, m.headerLength, &bufIndex, &dumpOffset);
+    m.responseHeader[m.headerLength] = '\0';
+    Debug("FLYING_SQUID", "in DefaultAWSCache::open_write 8");
+    putObjectCacheMeta(keyStr, &m);
+    Debug("FLYING_SQUID", "in DefaultAWSCache::open_write 9");
 
     // TODO: update stats, maybe have different handler etc.
     return ACTION_RESULT_DONE;
